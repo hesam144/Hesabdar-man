@@ -63,9 +63,6 @@ export default function ShoppingListScreen() {
   const [lists, setLists] = useState([]);
   const [expandedId, setExpandedId] = useState(null);
   const [expandedItems, setExpandedItems] = useState([]);
-  const [newItemName, setNewItemName] = useState('');
-  const [newItemQty, setNewItemQty] = useState('');
-  const [showCatalog, setShowCatalog] = useState(false);
   const [openCategoryId, setOpenCategoryId] = useState(null);
   const [mergedCategories, setMergedCategories] = useState(SHOPPING_CATEGORIES);
 
@@ -73,13 +70,13 @@ export default function ShoppingListScreen() {
   const [qtyItemName, setQtyItemName] = useState('');
   const [qtyValue, setQtyValue] = useState('1');
 
-  const [addCustomModalVisible, setAddCustomModalVisible] = useState(false);
-  const [customItemName, setCustomItemName] = useState('');
-  const [customCategoryId, setCustomCategoryId] = useState(null);
-
-  const [newCatModalVisible, setNewCatModalVisible] = useState(false);
-  const [newCatName, setNewCatName] = useState('');
-  const [newCatIcon, setNewCatIcon] = useState('📦');
+  const [addNewModalVisible, setAddNewModalVisible] = useState(false);
+  const [newItemName, setNewItemName] = useState('');
+  const [newItemQty, setNewItemQty] = useState('1');
+  const [newItemCategoryId, setNewItemCategoryId] = useState(null);
+  const [newItemNewCategoryName, setNewItemNewCategoryName] = useState('');
+  const [newItemNewCategoryIcon, setNewItemNewCategoryIcon] = useState('📦');
+  const [showNewCategoryInput, setShowNewCategoryInput] = useState(false);
 
   const CAT_ICON_OPTIONS = ['📦', '🧃', '🍜', '🥤', '🧊', '🍿', '🧈', '🫒', '🍯', '🥫', '🫘', '🧄', '🧅', '🌶️', '🥜', '🫧', '🧻', '🪥', '🧲', '🔌', '🪛', '🛠️', '💈', '🎒', '👜', '🧳', '🎽', '👓', '⌚', '🖨️', '📀', '🔋', '🧯', '🪣'];
 
@@ -276,45 +273,51 @@ export default function ShoppingListScreen() {
     loadLists();
   };
 
-  const handleAddItem = async () => {
-    if (!newItemName.trim() || !expandedId) return;
-    await addShoppingItem(db, {
-      listId: expandedId,
-      name: newItemName.trim(),
-      quantity: newItemQty.trim(),
-    });
+  const handleOpenAddNew = () => {
     setNewItemName('');
-    setNewItemQty('');
-    await loadItems(expandedId);
-    loadLists();
+    setNewItemQty('1');
+    setNewItemCategoryId(null);
+    setNewItemNewCategoryName('');
+    setNewItemNewCategoryIcon('📦');
+    setShowNewCategoryInput(false);
+    setAddNewModalVisible(true);
   };
 
-  const handleOpenAddCustom = () => {
-    setCustomItemName('');
-    setCustomCategoryId(null);
-    setAddCustomModalVisible(true);
-  };
-
-  const handleSaveCustomItem = async () => {
-    if (!customItemName.trim() || !customCategoryId) {
-      Alert.alert('خطا', 'نام آیتم و دسته‌بندی را انتخاب کنید');
+  const handleSaveNewItem = async () => {
+    if (!newItemName.trim()) {
+      Alert.alert('خطا', 'نام کالا را وارد کنید');
       return;
     }
-    await addCustomCatalogItem(db, customCategoryId, customItemName.trim());
-    setAddCustomModalVisible(false);
-    await loadMergedCategories();
-  };
 
-  const handleSaveNewCategory = async () => {
-    if (!newCatName.trim()) {
-      Alert.alert('خطا', 'نام دسته‌بندی را وارد کنید');
-      return;
+    let categoryId = newItemCategoryId;
+
+    if (showNewCategoryInput) {
+      if (!newItemNewCategoryName.trim()) {
+        Alert.alert('خطا', 'نام دسته‌بندی جدید را وارد کنید');
+        return;
+      }
+      await addCustomShoppingCategory(db, newItemNewCategoryName.trim(), newItemNewCategoryIcon);
+      const cats = await getCustomShoppingCategories(db);
+      const newCat = cats.find((c) => c.name === newItemNewCategoryName.trim());
+      if (newCat) categoryId = `custom_${newCat.id}`;
     }
-    await addCustomShoppingCategory(db, newCatName.trim(), newCatIcon);
-    setNewCatModalVisible(false);
-    setNewCatName('');
-    setNewCatIcon('📦');
+
+    if (categoryId) {
+      await addCustomCatalogItem(db, categoryId, newItemName.trim());
+    }
+
+    if (expandedId) {
+      await addShoppingItem(db, {
+        listId: expandedId,
+        name: newItemName.trim(),
+        quantity: newItemQty.trim() || '1',
+      });
+      await loadItems(expandedId);
+      loadLists();
+    }
+
     await loadMergedCategories();
+    setAddNewModalVisible(false);
   };
 
   const toggleCatalogCategory = (catId) => {
@@ -618,7 +621,7 @@ export default function ShoppingListScreen() {
 
               {isExpanded && (
                 <View style={styles.itemsContainer}>
-                  {expandedItems.length === 0 && !showCatalog && (
+                  {expandedItems.length === 0 && (
                     <Text style={styles.noItemsText}>هنوز آیتمی اضافه نشده</Text>
                   )}
 
@@ -655,91 +658,52 @@ export default function ShoppingListScreen() {
                     </View>
                   ))}
 
-                  {/* Manual add row */}
-                  <View style={styles.addItemRow}>
-                    <TextInput
-                      style={styles.addItemInput}
-                      placeholder="نام آیتم..."
-                      value={newItemName}
-                      onChangeText={setNewItemName}
-                      placeholderTextColor={COLORS.textLight}
-                    />
-                    <TextInput
-                      style={styles.addItemQtyInput}
-                      placeholder="تعداد"
-                      value={newItemQty}
-                      onChangeText={setNewItemQty}
-                      placeholderTextColor={COLORS.textLight}
-                    />
-                    <TouchableOpacity style={styles.addItemBtn} onPress={handleAddItem}>
-                      <Text style={styles.addItemBtnText}>+</Text>
-                    </TouchableOpacity>
+                  {/* Catalog accordion - always visible */}
+                  <View style={styles.catalogContainer}>
+                    {mergedCategories.map((cat) => {
+                      const isOpen = openCategoryId === cat.id;
+                      const existingNames = expandedItems.map((i) => i.name);
+                      return (
+                        <View key={cat.id}>
+                          <TouchableOpacity
+                            style={[styles.catalogHeader, isOpen && styles.catalogHeaderOpen]}
+                            onPress={() => toggleCatalogCategory(cat.id)}
+                          >
+                            <Text style={styles.catalogHeaderIcon}>{cat.icon}</Text>
+                            <Text style={styles.catalogHeaderText}>{cat.name}</Text>
+                            <Text style={styles.catalogHeaderArrow}>{isOpen ? '▲' : '▼'}</Text>
+                          </TouchableOpacity>
+                          {isOpen && (
+                            <View style={styles.catalogItems}>
+                              {cat.items.map((itemName) => {
+                                const alreadyAdded = existingNames.includes(itemName);
+                                return (
+                                  <TouchableOpacity
+                                    key={itemName}
+                                    style={[styles.catalogItem, alreadyAdded && styles.catalogItemAdded]}
+                                    onPress={() => !alreadyAdded && handleCatalogItemPress(itemName)}
+                                    disabled={alreadyAdded}
+                                  >
+                                    <Text style={[styles.catalogItemText, alreadyAdded && styles.catalogItemTextAdded]}>
+                                      {alreadyAdded ? '✓ ' : '+ '}{itemName}
+                                    </Text>
+                                  </TouchableOpacity>
+                                );
+                              })}
+                            </View>
+                          )}
+                        </View>
+                      );
+                    })}
                   </View>
 
-                  {/* Catalog toggle */}
+                  {/* Single 'Add New Item' button */}
                   <TouchableOpacity
-                    style={styles.catalogToggle}
-                    onPress={() => { setShowCatalog(!showCatalog); setOpenCategoryId(null); }}
+                    style={styles.addNewItemBtn}
+                    onPress={handleOpenAddNew}
                   >
-                    <Text style={styles.catalogToggleText}>
-                      {showCatalog ? '▲ بستن اقلام پیشنهادی' : '📋 انتخاب از اقلام پیشنهادی'}
-                    </Text>
+                    <Text style={styles.addNewItemBtnText}>+ آیتم جدید (اگه توی لیست بالا نیست)</Text>
                   </TouchableOpacity>
-
-                  {/* Catalog accordion */}
-                  {showCatalog && (
-                    <View style={styles.catalogContainer}>
-                      {mergedCategories.map((cat) => {
-                        const isOpen = openCategoryId === cat.id;
-                        const existingNames = expandedItems.map((i) => i.name);
-                        return (
-                          <View key={cat.id}>
-                            <TouchableOpacity
-                              style={[styles.catalogHeader, isOpen && styles.catalogHeaderOpen]}
-                              onPress={() => toggleCatalogCategory(cat.id)}
-                            >
-                              <Text style={styles.catalogHeaderIcon}>{cat.icon}</Text>
-                              <Text style={styles.catalogHeaderText}>{cat.name}</Text>
-                              <Text style={styles.catalogHeaderArrow}>{isOpen ? '▲' : '▼'}</Text>
-                            </TouchableOpacity>
-                            {isOpen && (
-                              <View style={styles.catalogItems}>
-                                {cat.items.map((itemName) => {
-                                  const alreadyAdded = existingNames.includes(itemName);
-                                  return (
-                                    <TouchableOpacity
-                                      key={itemName}
-                                      style={[styles.catalogItem, alreadyAdded && styles.catalogItemAdded]}
-                                      onPress={() => !alreadyAdded && handleCatalogItemPress(itemName)}
-                                      disabled={alreadyAdded}
-                                    >
-                                      <Text style={[styles.catalogItemText, alreadyAdded && styles.catalogItemTextAdded]}>
-                                        {alreadyAdded ? '✓ ' : '+ '}{itemName}
-                                      </Text>
-                                    </TouchableOpacity>
-                                  );
-                                })}
-                              </View>
-                            )}
-                          </View>
-                        );
-                      })}
-                      <View style={styles.catalogBottomBtns}>
-                        <TouchableOpacity
-                          style={styles.addCustomCatalogBtn}
-                          onPress={handleOpenAddCustom}
-                        >
-                          <Text style={styles.addCustomCatalogBtnText}>+ افزودن آیتم</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={[styles.addCustomCatalogBtn, { backgroundColor: COLORS.green }]}
-                          onPress={() => setNewCatModalVisible(true)}
-                        >
-                          <Text style={styles.addCustomCatalogBtnText}>+ دسته جدید</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  )}
 
                   {/* Save / Close buttons */}
                   <View style={styles.expandedActions}>
@@ -969,91 +933,106 @@ export default function ShoppingListScreen() {
         </View>
       </Modal>
 
-      {/* Add Custom Catalog Item Modal */}
-      <Modal visible={addCustomModalVisible} transparent animationType="slide">
+      {/* Unified Add New Item Modal */}
+      <Modal visible={addNewModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>افزودن آیتم جدید به دسته‌بندی</Text>
-            <TextInput
-              style={styles.modalInput}
-              placeholder="نام آیتم"
-              value={customItemName}
-              onChangeText={setCustomItemName}
-              placeholderTextColor={COLORS.textLight}
-            />
-            <Text style={[styles.label, { marginTop: 12, marginBottom: 8 }]}>انتخاب دسته‌بندی:</Text>
-            <ScrollView style={{ maxHeight: 200 }} nestedScrollEnabled>
-              {mergedCategories.map((cat) => (
-                <TouchableOpacity
-                  key={cat.id}
-                  style={[
-                    styles.customCatOption,
-                    customCategoryId === cat.id && styles.customCatOptionActive,
-                  ]}
-                  onPress={() => setCustomCategoryId(cat.id)}
-                >
-                  <Text style={styles.customCatOptionIcon}>{cat.icon}</Text>
-                  <Text style={[
-                    styles.customCatOptionText,
-                    customCategoryId === cat.id && styles.customCatOptionTextActive,
-                  ]}>{cat.name}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-            <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.modalSaveBtn} onPress={handleSaveCustomItem}>
-                <Text style={styles.modalSaveBtnText}>ذخیره</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.modalCancelBtn}
-                onPress={() => setAddCustomModalVisible(false)}
-              >
-                <Text style={styles.modalCancelBtnText}>انصراف</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+          <ScrollView contentContainerStyle={styles.modalScrollContent}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>افزودن آیتم جدید</Text>
 
-      {/* New Category Modal */}
-      <Modal visible={newCatModalVisible} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>ساخت دسته‌بندی جدید</Text>
-            <TextInput
-              style={styles.modalInput}
-              placeholder="نام دسته‌بندی (مثلاً لوازم ورزشی)"
-              value={newCatName}
-              onChangeText={setNewCatName}
-              placeholderTextColor={COLORS.textLight}
-            />
-            <Text style={[styles.label, { marginTop: 12, marginBottom: 8 }]}>آیکون انتخاب کنید:</Text>
-            <View style={styles.newCatIconGrid}>
-              {CAT_ICON_OPTIONS.map((icon) => (
-                <TouchableOpacity
-                  key={icon}
-                  style={[
-                    styles.newCatIconOption,
-                    newCatIcon === icon && styles.newCatIconOptionActive,
-                  ]}
-                  onPress={() => setNewCatIcon(icon)}
-                >
-                  <Text style={{ fontSize: 22 }}>{icon}</Text>
+              <Text style={[styles.label, { marginBottom: 6 }]}>نام کالا</Text>
+              <TextInput
+                style={styles.modalInput}
+                placeholder="مثلاً پودر رختشویی"
+                value={newItemName}
+                onChangeText={setNewItemName}
+                placeholderTextColor={COLORS.textLight}
+              />
+
+              <Text style={[styles.label, { marginTop: 12, marginBottom: 6 }]}>تعداد</Text>
+              <TextInput
+                style={styles.modalInput}
+                placeholder="۱"
+                value={newItemQty}
+                onChangeText={setNewItemQty}
+                keyboardType="default"
+                placeholderTextColor={COLORS.textLight}
+              />
+
+              <Text style={[styles.label, { marginTop: 12, marginBottom: 6 }]}>دسته‌بندی</Text>
+              {!showNewCategoryInput ? (
+                <>
+                  <ScrollView style={{ maxHeight: 180 }} nestedScrollEnabled>
+                    {mergedCategories.map((cat) => (
+                      <TouchableOpacity
+                        key={cat.id}
+                        style={[
+                          styles.customCatOption,
+                          newItemCategoryId === cat.id && styles.customCatOptionActive,
+                        ]}
+                        onPress={() => setNewItemCategoryId(cat.id)}
+                      >
+                        <Text style={styles.customCatOptionIcon}>{cat.icon}</Text>
+                        <Text style={[
+                          styles.customCatOptionText,
+                          newItemCategoryId === cat.id && styles.customCatOptionTextActive,
+                        ]}>{cat.name}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                  <TouchableOpacity
+                    style={styles.newCategoryToggle}
+                    onPress={() => { setShowNewCategoryInput(true); setNewItemCategoryId(null); }}
+                  >
+                    <Text style={styles.newCategoryToggleText}>+ ساخت دسته جدید</Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <View>
+                  <TextInput
+                    style={styles.modalInput}
+                    placeholder="نام دسته جدید (مثلاً لوازم ورزشی)"
+                    value={newItemNewCategoryName}
+                    onChangeText={setNewItemNewCategoryName}
+                    placeholderTextColor={COLORS.textLight}
+                  />
+                  <Text style={[styles.label, { marginTop: 8, marginBottom: 6 }]}>آیکون:</Text>
+                  <View style={styles.newCatIconGrid}>
+                    {CAT_ICON_OPTIONS.map((icon) => (
+                      <TouchableOpacity
+                        key={icon}
+                        style={[
+                          styles.newCatIconOption,
+                          newItemNewCategoryIcon === icon && styles.newCatIconOptionActive,
+                        ]}
+                        onPress={() => setNewItemNewCategoryIcon(icon)}
+                      >
+                        <Text style={{ fontSize: 20 }}>{icon}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  <TouchableOpacity
+                    style={styles.newCategoryToggle}
+                    onPress={() => { setShowNewCategoryInput(false); setNewItemNewCategoryName(''); }}
+                  >
+                    <Text style={styles.newCategoryToggleText}>← انتخاب از دسته‌های موجود</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              <View style={styles.modalActions}>
+                <TouchableOpacity style={styles.modalSaveBtn} onPress={handleSaveNewItem}>
+                  <Text style={styles.modalSaveBtnText}>ذخیره و افزودن</Text>
                 </TouchableOpacity>
-              ))}
+                <TouchableOpacity
+                  style={styles.modalCancelBtn}
+                  onPress={() => setAddNewModalVisible(false)}
+                >
+                  <Text style={styles.modalCancelBtnText}>انصراف</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-            <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.modalSaveBtn} onPress={handleSaveNewCategory}>
-                <Text style={styles.modalSaveBtnText}>ذخیره</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.modalCancelBtn}
-                onPress={() => setNewCatModalVisible(false)}
-              >
-                <Text style={styles.modalCancelBtnText}>انصراف</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+          </ScrollView>
         </View>
       </Modal>
     </View>
@@ -1636,21 +1615,31 @@ const styles = StyleSheet.create({
     color: COLORS.textLight,
     fontSize: 14,
   },
-  catalogBottomBtns: {
-    flexDirection: 'row',
-    gap: 8,
+  addNewItemBtn: {
     marginTop: 10,
-  },
-  addCustomCatalogBtn: {
-    flex: 1,
-    paddingVertical: 10,
+    paddingVertical: 12,
     backgroundColor: COLORS.primary,
     borderRadius: 10,
     alignItems: 'center',
   },
-  addCustomCatalogBtnText: {
+  addNewItemBtnText: {
     color: '#fff',
     fontSize: 14,
+    fontWeight: '600',
+  },
+  modalScrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    padding: 20,
+  },
+  newCategoryToggle: {
+    marginTop: 8,
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  newCategoryToggleText: {
+    color: COLORS.primary,
+    fontSize: 13,
     fontWeight: '600',
   },
   customCatOption: {
