@@ -745,6 +745,7 @@ export default function ShoppingListScreen() {
       <Modal visible={createModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
+            <View style={styles.modalHandle} />
             <View style={styles.modalHeader}>
               <Text style={styles.modalIcon}>🛒</Text>
               <Text style={styles.modalTitle}>لیست خرید جدید</Text>
@@ -795,6 +796,7 @@ export default function ShoppingListScreen() {
       <Modal visible={expenseModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
+            <View style={styles.modalHandle} />
             <View style={styles.modalHeader}>
               <Text style={styles.modalIcon}>💰</Text>
               <Text style={styles.modalTitle}>ثبت هزینه خرید</Text>
@@ -857,6 +859,7 @@ export default function ShoppingListScreen() {
       <Modal visible={editModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
+            <View style={styles.modalHandle} />
             <View style={styles.modalHeader}>
               <Text style={styles.modalIcon}>✏️</Text>
               <Text style={styles.modalTitle}>ویرایش لیست خرید</Text>
@@ -905,9 +908,10 @@ export default function ShoppingListScreen() {
       </Modal>
 
       {/* Quantity Prompt Modal */}
-      <Modal visible={qtyModalVisible} transparent animationType="fade">
+      <Modal visible={qtyModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
+            <View style={styles.modalHandle} />
             <Text style={styles.modalTitle}>تعداد «{qtyItemName}»</Text>
             <TextInput
               style={styles.modalInput}
@@ -938,6 +942,7 @@ export default function ShoppingListScreen() {
         <View style={styles.modalOverlay}>
           <ScrollView contentContainerStyle={styles.modalScrollContent}>
             <View style={styles.modalContent}>
+              <View style={styles.modalHandle} />
               <Text style={styles.modalTitle}>افزودن آیتم جدید</Text>
 
               <Text style={[styles.label, { marginBottom: 6 }]}>نام کالا</Text>
@@ -1347,14 +1352,24 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'flex-end',
   },
   modalContent: {
     backgroundColor: COLORS.card,
-    borderRadius: 20,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     padding: 24,
-    width: '88%',
+    paddingBottom: 32,
+    width: '100%',
+    maxHeight: '90%',
+  },
+  modalHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#D0D5DD',
+    alignSelf: 'center',
+    marginBottom: 16,
   },
   modalHeader: {
     alignItems: 'center',
@@ -1368,15 +1383,17 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: COLORS.text,
+    textAlign: 'center',
+    marginBottom: 16,
   },
   modalInput: {
     backgroundColor: COLORS.background,
     borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     fontSize: 16,
     color: COLORS.text,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: COLORS.border,
     textAlign: 'right',
     marginBottom: 12,
@@ -1396,9 +1413,14 @@ const styles = StyleSheet.create({
   modalSaveBtn: {
     flex: 1,
     backgroundColor: COLORS.primary,
-    borderRadius: 12,
-    paddingVertical: 14,
+    borderRadius: 14,
+    paddingVertical: 16,
     alignItems: 'center',
+    elevation: 2,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
   },
   modalSaveBtnText: {
     color: '#fff',
@@ -1408,14 +1430,14 @@ const styles = StyleSheet.create({
   modalCancelBtn: {
     flex: 1,
     backgroundColor: COLORS.background,
-    borderRadius: 12,
-    paddingVertical: 14,
+    borderRadius: 14,
+    paddingVertical: 16,
     alignItems: 'center',
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: COLORS.border,
   },
   modalCancelBtnText: {
-    color: COLORS.text,
+    color: COLORS.textLight,
     fontSize: 16,
   },
   addExpenseBtn: {
@@ -1629,28 +1651,32 @@ const styles = StyleSheet.create({
   },
   modalScrollContent: {
     flexGrow: 1,
-    justifyContent: 'center',
-    padding: 20,
+    justifyContent: 'flex-end',
   },
   newCategoryToggle: {
-    marginTop: 8,
-    paddingVertical: 8,
+    marginTop: 10,
+    paddingVertical: 10,
     alignItems: 'center',
+    backgroundColor: '#F0F4FF',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+    borderStyle: 'dashed',
   },
   newCategoryToggleText: {
     color: COLORS.primary,
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
   },
   customCatOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    marginBottom: 4,
-    backgroundColor: COLORS.card,
-    borderWidth: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    marginBottom: 6,
+    backgroundColor: COLORS.background,
+    borderWidth: 1.5,
     borderColor: COLORS.border,
   },
   customCatOptionActive: {
@@ -1658,16 +1684,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#E3F2FD',
   },
   customCatOptionIcon: {
-    fontSize: 18,
-    marginLeft: 8,
+    fontSize: 22,
+    marginLeft: 10,
   },
   customCatOptionText: {
-    fontSize: 14,
+    fontSize: 15,
     color: COLORS.text,
   },
   customCatOptionTextActive: {
     color: COLORS.primary,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   label: {
     fontSize: 14,
@@ -1678,22 +1704,28 @@ const styles = StyleSheet.create({
   newCatIconGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: 10,
     justifyContent: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
+    paddingVertical: 8,
   },
   newCatIconOption: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
+    width: 48,
+    height: 48,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.card,
+    backgroundColor: COLORS.background,
     borderWidth: 2,
     borderColor: COLORS.border,
   },
   newCatIconOptionActive: {
     borderColor: COLORS.primary,
     backgroundColor: '#E3F2FD',
+    elevation: 2,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
   },
 });
