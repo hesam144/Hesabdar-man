@@ -9,7 +9,6 @@ import {
   Alert,
   Modal,
   Share,
-  Platform,
 } from 'react-native';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useFocusEffect } from '@react-navigation/native';
@@ -23,7 +22,6 @@ import {
   getShoppingItems,
   toggleShoppingItem,
   deleteShoppingItem,
-  updateShoppingListNotification,
 } from '../database/queries';
 import {
   getTodayString,
@@ -102,7 +100,7 @@ export default function ShoppingListScreen() {
         try {
           notificationId = await Notifications.scheduleNotificationAsync({
             content: {
-              title: 'یادآوری لیست خرید',
+              title: 'یادآوری لیست خرید 🛒',
               body: `امروز باید "${listName.trim()}" رو خرید کنی!`,
             },
             trigger: { date: notifyDateObj },
@@ -131,7 +129,7 @@ export default function ShoppingListScreen() {
     Alert.alert('حذف لیست', `لیست "${list.name}" حذف بشه؟`, [
       { text: 'نه', style: 'cancel' },
       {
-        text: 'بله',
+        text: 'بله، حذف کن',
         style: 'destructive',
         onPress: async () => {
           if (list.notification_id) {
@@ -184,18 +182,38 @@ export default function ShoppingListScreen() {
 
   const handleShareList = async (list) => {
     const items = await getShoppingItems(db, list.id);
+    const checked = items.filter((i) => i.is_checked).length;
+    const total = items.length;
+
     const itemLines = items.map((i) => {
-      const check = i.is_checked ? '[x]' : '[ ]';
-      const qty = i.quantity ? ` (${i.quantity})` : '';
-      return `${check} ${i.name}${qty}`;
+      const check = i.is_checked ? '  ✅' : '  🔲';
+      const qty = i.quantity ? `  ×${i.quantity}` : '';
+      return `${check}  ${i.name}${qty}`;
     });
-    const text = `لیست خرید: ${list.name}\nتاریخ: ${gregorianToJalali(list.date)}\n\n${itemLines.join('\n')}`;
+
+    const text = [
+      '🛒 ─────────────────',
+      `   ${list.name}`,
+      '─────────────────────',
+      `📅  ${gregorianToJalali(list.date)}`,
+      `📊  ${checked} از ${total} آیتم خریداری شده`,
+      '',
+      ...itemLines,
+      '',
+      '─────────────────────',
+      '📱 حسابدار من',
+    ].join('\n');
 
     try {
       await Share.share({ message: text });
     } catch (e) {
       console.log('Share failed:', e);
     }
+  };
+
+  const getProgressPercent = (list) => {
+    if (!list.total_items || list.total_items === 0) return 0;
+    return Math.round((list.checked_items / list.total_items) * 100);
   };
 
   return (
@@ -211,92 +229,159 @@ export default function ShoppingListScreen() {
           </View>
         )}
 
-        {lists.map((list) => (
-          <View key={list.id}>
-            <TouchableOpacity
-              style={[
-                styles.listCard,
-                list.is_completed && styles.listCardCompleted,
-              ]}
-              onPress={() => handleExpand(list.id)}
-              onLongPress={() => handleDeleteList(list)}
-            >
-              <View style={styles.listHeader}>
-                <TouchableOpacity onPress={() => handleToggleComplete(list)}>
-                  <Text style={styles.checkIcon}>
-                    {list.is_completed ? '✅' : '⬜'}
-                  </Text>
-                </TouchableOpacity>
-                <View style={styles.listInfo}>
-                  <Text style={[
-                    styles.listName,
-                    list.is_completed && styles.listNameCompleted,
-                  ]}>
-                    {list.name}
-                  </Text>
-                  <Text style={styles.listDate}>
-                    {gregorianToJalali(list.date)}
-                    {list.notify_date ? ` | یادآوری: ${gregorianToJalali(list.notify_date)}` : ''}
-                  </Text>
-                </View>
-                <View style={styles.listBadge}>
-                  <Text style={styles.listBadgeText}>
-                    {list.checked_items}/{list.total_items}
-                  </Text>
-                </View>
-                <TouchableOpacity onPress={() => handleShareList(list)} style={styles.shareBtn}>
-                  <Text style={styles.shareBtnText}>📤</Text>
-                </TouchableOpacity>
-              </View>
-            </TouchableOpacity>
+        {lists.map((list) => {
+          const progress = getProgressPercent(list);
+          const isExpanded = expandedId === list.id;
 
-            {expandedId === list.id && (
-              <View style={styles.itemsContainer}>
-                {expandedItems.map((item) => (
-                  <View key={item.id} style={styles.itemRow}>
-                    <TouchableOpacity onPress={() => handleToggleItem(item)}>
-                      <Text style={styles.itemCheck}>
-                        {item.is_checked ? '✅' : '⬜'}
-                      </Text>
-                    </TouchableOpacity>
-                    <Text style={[
-                      styles.itemName,
-                      item.is_checked && styles.itemNameChecked,
+          return (
+            <View key={list.id} style={styles.listWrapper}>
+              <TouchableOpacity
+                style={[
+                  styles.listCard,
+                  list.is_completed && styles.listCardCompleted,
+                  isExpanded && styles.listCardExpanded,
+                ]}
+                onPress={() => handleExpand(list.id)}
+                activeOpacity={0.7}
+              >
+                {/* Progress bar */}
+                <View style={styles.progressBarBg}>
+                  <View
+                    style={[
+                      styles.progressBarFill,
+                      {
+                        width: `${progress}%`,
+                        backgroundColor: progress === 100 ? COLORS.green : COLORS.primary,
+                      },
+                    ]}
+                  />
+                </View>
+
+                <View style={styles.listHeader}>
+                  <TouchableOpacity
+                    onPress={() => handleToggleComplete(list)}
+                    style={styles.checkBtn}
+                  >
+                    <View style={[
+                      styles.checkbox,
+                      list.is_completed && styles.checkboxChecked,
                     ]}>
-                      {item.name}
+                      {list.is_completed && <Text style={styles.checkMark}>✓</Text>}
+                    </View>
+                  </TouchableOpacity>
+
+                  <View style={styles.listInfo}>
+                    <Text style={[
+                      styles.listName,
+                      list.is_completed && styles.listNameCompleted,
+                    ]}>
+                      {list.name}
                     </Text>
-                    {item.quantity ? (
-                      <Text style={styles.itemQty}>{item.quantity}</Text>
-                    ) : null}
-                    <TouchableOpacity onPress={() => handleDeleteItem(item)}>
-                      <Text style={styles.itemDelete}>🗑️</Text>
+                    <View style={styles.listMeta}>
+                      <Text style={styles.listDate}>
+                        📅 {gregorianToJalali(list.date)}
+                      </Text>
+                      {list.notify_date && (
+                        <Text style={styles.listNotify}>
+                          🔔 {gregorianToJalali(list.notify_date)}
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+
+                  <View style={styles.listActions}>
+                    <View style={styles.badge}>
+                      <Text style={styles.badgeText}>
+                        {list.checked_items}/{list.total_items}
+                      </Text>
+                    </View>
+                    <View style={styles.actionBtns}>
+                      <TouchableOpacity
+                        onPress={() => handleShareList(list)}
+                        style={styles.actionBtn}
+                      >
+                        <Text style={styles.actionBtnText}>📤</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => handleDeleteList(list)}
+                        style={styles.actionBtn}
+                      >
+                        <Text style={styles.actionBtnText}>🗑️</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+
+                <View style={styles.expandHint}>
+                  <Text style={styles.expandHintText}>
+                    {isExpanded ? '▲ بستن' : '▼ مشاهده آیتم‌ها'}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+              {isExpanded && (
+                <View style={styles.itemsContainer}>
+                  {expandedItems.length === 0 && (
+                    <Text style={styles.noItemsText}>هنوز آیتمی اضافه نشده</Text>
+                  )}
+
+                  {expandedItems.map((item) => (
+                    <View key={item.id} style={styles.itemRow}>
+                      <TouchableOpacity
+                        onPress={() => handleToggleItem(item)}
+                        style={styles.itemCheckBtn}
+                      >
+                        <View style={[
+                          styles.itemCheckbox,
+                          item.is_checked && styles.itemCheckboxChecked,
+                        ]}>
+                          {item.is_checked && <Text style={styles.itemCheckMark}>✓</Text>}
+                        </View>
+                      </TouchableOpacity>
+                      <Text style={[
+                        styles.itemName,
+                        item.is_checked && styles.itemNameChecked,
+                      ]}>
+                        {item.name}
+                      </Text>
+                      {item.quantity ? (
+                        <View style={styles.qtyBadge}>
+                          <Text style={styles.qtyText}>×{item.quantity}</Text>
+                        </View>
+                      ) : null}
+                      <TouchableOpacity
+                        onPress={() => handleDeleteItem(item)}
+                        style={styles.itemDeleteBtn}
+                      >
+                        <Text style={styles.itemDeleteText}>✕</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+
+                  <View style={styles.addItemRow}>
+                    <TextInput
+                      style={styles.addItemInput}
+                      placeholder="نام آیتم..."
+                      value={newItemName}
+                      onChangeText={setNewItemName}
+                      placeholderTextColor={COLORS.textLight}
+                    />
+                    <TextInput
+                      style={styles.addItemQtyInput}
+                      placeholder="تعداد"
+                      value={newItemQty}
+                      onChangeText={setNewItemQty}
+                      placeholderTextColor={COLORS.textLight}
+                    />
+                    <TouchableOpacity style={styles.addItemBtn} onPress={handleAddItem}>
+                      <Text style={styles.addItemBtnText}>+</Text>
                     </TouchableOpacity>
                   </View>
-                ))}
-
-                <View style={styles.addItemRow}>
-                  <TextInput
-                    style={styles.addItemInput}
-                    placeholder="نام آیتم"
-                    value={newItemName}
-                    onChangeText={setNewItemName}
-                    placeholderTextColor={COLORS.textLight}
-                  />
-                  <TextInput
-                    style={styles.addItemQtyInput}
-                    placeholder="تعداد"
-                    value={newItemQty}
-                    onChangeText={setNewItemQty}
-                    placeholderTextColor={COLORS.textLight}
-                  />
-                  <TouchableOpacity style={styles.addItemBtn} onPress={handleAddItem}>
-                    <Text style={styles.addItemBtnText}>+</Text>
-                  </TouchableOpacity>
                 </View>
-              </View>
-            )}
-          </View>
-        ))}
+              )}
+            </View>
+          );
+        })}
         <View style={{ height: 80 }} />
       </ScrollView>
 
@@ -309,7 +394,10 @@ export default function ShoppingListScreen() {
       <Modal visible={createModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>لیست خرید جدید</Text>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalIcon}>🛒</Text>
+              <Text style={styles.modalTitle}>لیست خرید جدید</Text>
+            </View>
 
             <TextInput
               style={styles.modalInput}
@@ -319,19 +407,19 @@ export default function ShoppingListScreen() {
               placeholderTextColor={COLORS.textLight}
             />
 
-            <Text style={styles.modalLabel}>تاریخ خرید (شمسی)</Text>
+            <Text style={styles.modalLabel}>📅 تاریخ خرید (شمسی)</Text>
             <TextInput
               style={styles.modalInput}
-              placeholder="۱۴۰۴/۰۳/۲۵"
+              placeholder="۱۴۰۵/۰۳/۲۵"
               value={listDate}
               onChangeText={setListDate}
               placeholderTextColor={COLORS.textLight}
             />
 
-            <Text style={styles.modalLabel}>تاریخ یادآوری (اختیاری)</Text>
+            <Text style={styles.modalLabel}>🔔 تاریخ یادآوری (اختیاری)</Text>
             <TextInput
               style={styles.modalInput}
-              placeholder="۱۴۰۴/۰۳/۲۴"
+              placeholder="۱۴۰۵/۰۳/۲۴"
               value={listNotifyDate}
               onChangeText={setListNotifyDate}
               placeholderTextColor={COLORS.textLight}
@@ -367,14 +455,19 @@ const styles = StyleSheet.create({
   },
   emptyCard: {
     backgroundColor: COLORS.card,
-    borderRadius: 16,
-    padding: 32,
+    borderRadius: 20,
+    padding: 40,
     alignItems: 'center',
     marginTop: 40,
+    elevation: 2,
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   emptyIcon: {
-    fontSize: 48,
-    marginBottom: 12,
+    fontSize: 56,
+    marginBottom: 16,
   },
   emptyText: {
     fontSize: 18,
@@ -387,34 +480,69 @@ const styles = StyleSheet.create({
     color: COLORS.textLight,
     textAlign: 'center',
   },
+  listWrapper: {
+    marginBottom: 12,
+  },
   listCard: {
     backgroundColor: COLORS.card,
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 4,
-    elevation: 1,
+    borderRadius: 16,
+    overflow: 'hidden',
+    elevation: 2,
     shadowColor: COLORS.shadow,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   listCardCompleted: {
-    opacity: 0.6,
+    opacity: 0.65,
+  },
+  listCardExpanded: {
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+  },
+  progressBarBg: {
+    height: 4,
+    backgroundColor: COLORS.border,
+  },
+  progressBarFill: {
+    height: 4,
+    borderRadius: 2,
   },
   listHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    padding: 14,
   },
-  checkIcon: {
-    fontSize: 22,
+  checkBtn: {
+    padding: 4,
     marginLeft: 10,
+  },
+  checkbox: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 2.5,
+    borderColor: COLORS.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.background,
+  },
+  checkboxChecked: {
+    backgroundColor: COLORS.green,
+    borderColor: COLORS.green,
+  },
+  checkMark: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
   listInfo: {
     flex: 1,
+    marginRight: 4,
   },
   listName: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
     color: COLORS.text,
     textAlign: 'right',
   },
@@ -422,84 +550,151 @@ const styles = StyleSheet.create({
     textDecorationLine: 'line-through',
     color: COLORS.textLight,
   },
+  listMeta: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
+    marginTop: 4,
+  },
   listDate: {
     fontSize: 12,
     color: COLORS.textLight,
-    textAlign: 'right',
-    marginTop: 2,
   },
-  listBadge: {
+  listNotify: {
+    fontSize: 12,
+    color: COLORS.orange,
+  },
+  listActions: {
+    alignItems: 'center',
+  },
+  badge: {
     backgroundColor: COLORS.primary,
     borderRadius: 12,
     paddingHorizontal: 10,
     paddingVertical: 4,
-    marginHorizontal: 8,
+    marginBottom: 6,
   },
-  listBadgeText: {
+  badgeText: {
     color: '#fff',
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
   },
-  shareBtn: {
+  actionBtns: {
+    flexDirection: 'row',
+    gap: 4,
+  },
+  actionBtn: {
     padding: 4,
   },
-  shareBtnText: {
-    fontSize: 20,
+  actionBtnText: {
+    fontSize: 16,
+  },
+  expandHint: {
+    alignItems: 'center',
+    paddingBottom: 8,
+  },
+  expandHintText: {
+    fontSize: 11,
+    color: COLORS.textLight,
   },
   itemsContainer: {
     backgroundColor: COLORS.card,
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 12,
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+    paddingHorizontal: 14,
+    paddingBottom: 14,
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
+    elevation: 2,
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  noItemsText: {
+    textAlign: 'center',
+    color: COLORS.textLight,
+    fontSize: 14,
+    paddingVertical: 16,
   },
   itemRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
   },
-  itemCheck: {
-    fontSize: 18,
-    marginLeft: 10,
+  itemCheckBtn: {
+    padding: 4,
+    marginLeft: 8,
+  },
+  itemCheckbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: COLORS.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.background,
+  },
+  itemCheckboxChecked: {
+    backgroundColor: COLORS.green,
+    borderColor: COLORS.green,
+  },
+  itemCheckMark: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   itemName: {
     flex: 1,
     fontSize: 15,
     color: COLORS.text,
     textAlign: 'right',
+    marginRight: 4,
   },
   itemNameChecked: {
     textDecorationLine: 'line-through',
     color: COLORS.textLight,
   },
-  itemQty: {
-    fontSize: 13,
-    color: COLORS.textLight,
-    marginHorizontal: 8,
-    backgroundColor: COLORS.background,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+  qtyBadge: {
+    backgroundColor: '#EDF2F7',
     borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    marginHorizontal: 6,
   },
-  itemDelete: {
-    fontSize: 16,
-    padding: 4,
+  qtyText: {
+    fontSize: 12,
+    color: COLORS.primary,
+    fontWeight: '600',
+  },
+  itemDeleteBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#FEE2E2',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  itemDeleteText: {
+    color: COLORS.red,
+    fontSize: 13,
+    fontWeight: 'bold',
   },
   addItemRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: 12,
     gap: 8,
   },
   addItemInput: {
     flex: 1,
     backgroundColor: COLORS.background,
-    borderRadius: 8,
+    borderRadius: 10,
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 10,
     fontSize: 14,
     color: COLORS.text,
     borderWidth: 1,
@@ -507,11 +702,11 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   addItemQtyInput: {
-    width: 70,
+    width: 65,
     backgroundColor: COLORS.background,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
     fontSize: 14,
     color: COLORS.text,
     borderWidth: 1,
@@ -520,15 +715,15 @@ const styles = StyleSheet.create({
   },
   addItemBtn: {
     backgroundColor: COLORS.primary,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 42,
+    height: 42,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
   },
   addItemBtnText: {
     color: '#fff',
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: 'bold',
   },
   fab: {
@@ -536,20 +731,20 @@ const styles = StyleSheet.create({
     bottom: 20,
     left: 20,
     backgroundColor: COLORS.primary,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 58,
+    height: 58,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 5,
-    shadowColor: COLORS.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
+    elevation: 6,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
   },
   fabText: {
     color: '#fff',
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: 'bold',
   },
   // Modal styles
@@ -561,20 +756,26 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: COLORS.card,
-    borderRadius: 16,
-    padding: 20,
-    width: '85%',
+    borderRadius: 20,
+    padding: 24,
+    width: '88%',
+  },
+  modalHeader: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalIcon: {
+    fontSize: 40,
+    marginBottom: 8,
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
     color: COLORS.text,
-    textAlign: 'center',
-    marginBottom: 16,
   },
   modalInput: {
     backgroundColor: COLORS.background,
-    borderRadius: 10,
+    borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 16,
@@ -594,25 +795,25 @@ const styles = StyleSheet.create({
   modalActions: {
     flexDirection: 'row',
     gap: 12,
-    marginTop: 8,
+    marginTop: 12,
   },
   modalSaveBtn: {
     flex: 1,
     backgroundColor: COLORS.primary,
-    borderRadius: 10,
-    paddingVertical: 12,
+    borderRadius: 12,
+    paddingVertical: 14,
     alignItems: 'center',
   },
   modalSaveBtnText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   modalCancelBtn: {
     flex: 1,
     backgroundColor: COLORS.background,
-    borderRadius: 10,
-    paddingVertical: 12,
+    borderRadius: 12,
+    paddingVertical: 14,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: COLORS.border,

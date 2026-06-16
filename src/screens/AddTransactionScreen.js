@@ -18,8 +18,24 @@ import { getTodayString } from '../utils/date';
 import { COLORS } from '../utils/colors';
 
 const ICON_OPTIONS = [
-  '🍕', '🛍️', '🏥', '🎓', '🚗', '🏋️', '🎬', '💻',
-  '🐱', '🏡', '✈️', '📱', '🎵', '💊', '🧹', '📌',
+  // Food & Drink
+  '🍞', '🍕', '🍔', '🍎', '🥛', '☕', '🍰', '🥗',
+  // Shopping & Money
+  '🛍️', '🛒', '💰', '💵', '💳', '🏦', '💎', '🎁',
+  // Transport
+  '🚗', '🚌', '🚕', '🏍️', '✈️', '🚇', '⛽', '🚲',
+  // Home & Living
+  '🏠', '🏡', '🛋️', '🔑', '🧹', '🪴', '💡', '🚿',
+  // Health & Beauty
+  '🏥', '💊', '🧴', '💅', '🏋️', '🧘', '🩺', '😷',
+  // Education & Work
+  '📚', '🎓', '💻', '📱', '🖥️', '📝', '🖊️', '📐',
+  // Entertainment
+  '🎬', '🎮', '🎵', '🎭', '📷', '🎨', '⚽', '🎯',
+  // People & Pets
+  '👶', '👨‍👩‍👧', '🐱', '🐶', '🧸', '👕', '👗', '👟',
+  // Other
+  '📌', '🔧', '📦', '🗓️', '🏢', '⭐', '❤️', '🌍',
 ];
 
 export default function AddTransactionScreen({ navigation }) {
@@ -213,20 +229,22 @@ export default function AddTransactionScreen({ navigation }) {
             />
 
             <Text style={styles.modalLabel}>آیکون انتخاب کنید:</Text>
-            <View style={styles.iconGrid}>
-              {ICON_OPTIONS.map((icon) => (
-                <TouchableOpacity
-                  key={icon}
-                  style={[
-                    styles.iconOption,
-                    newCatIcon === icon && styles.iconOptionActive,
-                  ]}
-                  onPress={() => setNewCatIcon(icon)}
-                >
-                  <Text style={styles.iconText}>{icon}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <ScrollView style={styles.iconScroll} nestedScrollEnabled>
+              <View style={styles.iconGrid}>
+                {ICON_OPTIONS.map((icon) => (
+                  <TouchableOpacity
+                    key={icon}
+                    style={[
+                      styles.iconOption,
+                      newCatIcon === icon && styles.iconOptionActive,
+                    ]}
+                    onPress={() => setNewCatIcon(icon)}
+                  >
+                    <Text style={styles.iconText}>{icon}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
 
             <View style={styles.modalActions}>
               <TouchableOpacity style={styles.modalSaveBtn} onPress={handleAddCategory}>
@@ -403,11 +421,14 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     textAlign: 'right',
   },
+  iconScroll: {
+    maxHeight: 200,
+    marginBottom: 16,
+  },
   iconGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
-    marginBottom: 16,
   },
   iconOption: {
     width: 44,
