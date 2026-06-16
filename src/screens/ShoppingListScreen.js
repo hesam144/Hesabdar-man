@@ -27,6 +27,7 @@ import {
   updateShoppingList,
   getCustomCatalogItems,
   addCustomCatalogItem,
+  markShoppingListPurchased,
 } from '../database/queries';
 import {
   getTodayString,
@@ -336,7 +337,14 @@ export default function ShoppingListScreen() {
       'هزینه ثبت شد',
       `هزینه "${expenseListName}" ثبت شد. میخوای لیست خرید رو هم حذف کنی؟`,
       [
-        { text: 'نه، نگهش دار', style: 'cancel' },
+        {
+          text: 'نه، نگهش دار',
+          style: 'cancel',
+          onPress: async () => {
+            await markShoppingListPurchased(db, currentListId);
+            loadLists();
+          },
+        },
         {
           text: 'بله، حذفش کن',
           style: 'destructive',
@@ -521,6 +529,17 @@ export default function ShoppingListScreen() {
                         </Text>
                       )}
                     </View>
+                    <View style={[
+                      styles.statusBadge,
+                      list.is_purchased ? styles.statusPurchased : styles.statusPending,
+                    ]}>
+                      <Text style={[
+                        styles.statusText,
+                        list.is_purchased ? styles.statusTextPurchased : styles.statusTextPending,
+                      ]}>
+                        {list.is_purchased ? '✅ خریداری شده' : '⏳ در انتظار خرید'}
+                      </Text>
+                    </View>
                   </View>
 
                   <View style={styles.listActions}>
@@ -684,6 +703,30 @@ export default function ShoppingListScreen() {
                       </TouchableOpacity>
                     </View>
                   )}
+
+                  {/* Save / Close buttons */}
+                  <View style={styles.expandedActions}>
+                    <TouchableOpacity
+                      style={styles.saveListBtn}
+                      onPress={() => {
+                        setExpandedId(null);
+                        setExpandedItems([]);
+                        setShowCatalog(false);
+                      }}
+                    >
+                      <Text style={styles.saveListBtnText}>✓ ذخیره و بستن</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.cancelListBtn}
+                      onPress={() => {
+                        setExpandedId(null);
+                        setExpandedItems([]);
+                        setShowCatalog(false);
+                      }}
+                    >
+                      <Text style={styles.cancelListBtnText}>بستن</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               )}
             </View>
@@ -1457,6 +1500,62 @@ const styles = StyleSheet.create({
   },
   catalogItemTextAdded: {
     color: COLORS.green,
+  },
+  statusBadge: {
+    marginTop: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+  },
+  statusPurchased: {
+    backgroundColor: '#E8F5E9',
+  },
+  statusPending: {
+    backgroundColor: '#FFF3E0',
+  },
+  statusText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  statusTextPurchased: {
+    color: '#2E7D32',
+  },
+  statusTextPending: {
+    color: '#E65100',
+  },
+  expandedActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+  },
+  saveListBtn: {
+    flex: 1,
+    backgroundColor: COLORS.primary,
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  saveListBtnText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  cancelListBtn: {
+    flex: 1,
+    backgroundColor: COLORS.card,
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  cancelListBtnText: {
+    color: COLORS.textLight,
+    fontSize: 14,
   },
   addCustomCatalogBtn: {
     marginTop: 10,

@@ -243,6 +243,10 @@ export async function toggleShoppingListComplete(db, id, isCompleted) {
   return db.runAsync('UPDATE shopping_lists SET is_completed = ? WHERE id = ?', isCompleted ? 1 : 0, id);
 }
 
+export async function markShoppingListPurchased(db, id) {
+  return db.runAsync('UPDATE shopping_lists SET is_purchased = 1 WHERE id = ?', id);
+}
+
 export async function updateShoppingListNotification(db, id, notifyDate, notificationId, notificationIdNext) {
   const gNotifyDate = notifyDate ? (jalaliToGregorian(notifyDate) || notifyDate) : null;
   return db.runAsync(

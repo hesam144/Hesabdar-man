@@ -58,6 +58,7 @@ export async function migrateDbIfNeeded(db) {
       notification_id TEXT,
       notification_id_next TEXT,
       is_completed INTEGER NOT NULL DEFAULT 0,
+      is_purchased INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
@@ -80,6 +81,12 @@ export async function migrateDbIfNeeded(db) {
 
   try {
     await db.runAsync('ALTER TABLE shopping_lists ADD COLUMN notification_id_next TEXT');
+  } catch (e) {
+    // column already exists
+  }
+
+  try {
+    await db.runAsync('ALTER TABLE shopping_lists ADD COLUMN is_purchased INTEGER NOT NULL DEFAULT 0');
   } catch (e) {
     // column already exists
   }
