@@ -207,15 +207,16 @@ export async function getSavingsTips(db, jYear, jMonth) {
 
 // --- Shopping Lists ---
 
-export async function createShoppingList(db, { name, date, notifyDate, notificationId }) {
+export async function createShoppingList(db, { name, date, notifyDate, notificationId, notificationIdNext }) {
   const gDate = jalaliToGregorian(date) || date;
   const gNotifyDate = notifyDate ? (jalaliToGregorian(notifyDate) || notifyDate) : null;
   return db.runAsync(
-    'INSERT INTO shopping_lists (name, date, notify_date, notification_id) VALUES (?, ?, ?, ?)',
+    'INSERT INTO shopping_lists (name, date, notify_date, notification_id, notification_id_next) VALUES (?, ?, ?, ?, ?)',
     name,
     gDate,
     gNotifyDate,
-    notificationId || null
+    notificationId || null,
+    notificationIdNext || null
   );
 }
 
@@ -242,12 +243,27 @@ export async function toggleShoppingListComplete(db, id, isCompleted) {
   return db.runAsync('UPDATE shopping_lists SET is_completed = ? WHERE id = ?', isCompleted ? 1 : 0, id);
 }
 
-export async function updateShoppingListNotification(db, id, notifyDate, notificationId) {
+export async function updateShoppingListNotification(db, id, notifyDate, notificationId, notificationIdNext) {
   const gNotifyDate = notifyDate ? (jalaliToGregorian(notifyDate) || notifyDate) : null;
   return db.runAsync(
-    'UPDATE shopping_lists SET notify_date = ?, notification_id = ? WHERE id = ?',
+    'UPDATE shopping_lists SET notify_date = ?, notification_id = ?, notification_id_next = ? WHERE id = ?',
     gNotifyDate,
     notificationId || null,
+    notificationIdNext || null,
+    id
+  );
+}
+
+export async function updateShoppingList(db, id, { name, date, notifyDate, notificationId, notificationIdNext }) {
+  const gDate = jalaliToGregorian(date) || date;
+  const gNotifyDate = notifyDate ? (jalaliToGregorian(notifyDate) || notifyDate) : null;
+  return db.runAsync(
+    'UPDATE shopping_lists SET name = ?, date = ?, notify_date = ?, notification_id = ?, notification_id_next = ? WHERE id = ?',
+    name,
+    gDate,
+    gNotifyDate,
+    notificationId || null,
+    notificationIdNext || null,
     id
   );
 }

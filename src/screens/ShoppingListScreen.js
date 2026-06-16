@@ -24,6 +24,7 @@ import {
   deleteShoppingItem,
   addTransaction,
   getCategories,
+  updateShoppingList,
 } from '../database/queries';
 import {
   getTodayString,
@@ -35,11 +36,22 @@ import SHOPPING_CATEGORIES from '../utils/shoppingCategories';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: true,
     shouldSetBadge: false,
   }),
 });
+
+const scheduleDateNotification = async (title, body, dateObj) => {
+  return Notifications.scheduleNotificationAsync({
+    content: { title, body },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.DATE,
+      date: dateObj,
+    },
+  });
+};
 
 export default function ShoppingListScreen() {
   const db = useSQLiteContext();
@@ -63,6 +75,14 @@ export default function ShoppingListScreen() {
   const [expenseAmount, setExpenseAmount] = useState('');
   const [expenseCategories, setExpenseCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState(null);
+
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editListId, setEditListId] = useState(null);
+  const [editName, setEditName] = useState('');
+  const [editDate, setEditDate] = useState('');
+  const [editNotifyDate, setEditNotifyDate] = useState('');
+  const [editOldNotificationId, setEditOldNotificationId] = useState(null);
+  const [editOldNotificationIdNext, setEditOldNotificationIdNext] = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -106,20 +126,32 @@ export default function ShoppingListScreen() {
     }
 
     let notificationId = null;
+    let notificationIdNext = null;
     if (listNotifyDate.trim()) {
       const notifyDateObj = jalaliToDate(listNotifyDate);
       if (notifyDateObj && notifyDateObj > new Date()) {
-        notifyDateObj.setHours(9, 0, 0, 0);
+        notifyDateObj.setHours(22, 0, 0, 0);
         try {
-          notificationId = await Notifications.scheduleNotificationAsync({
-            content: {
-              title: 'یادآوری لیست خرید 🛒',
-              body: `امروز روز "${listName.trim()}" ته! اگه خرید کردی جمع لیست رو بگو تا به هزینه‌ها اضافه کنم`,
-            },
-            trigger: { date: notifyDateObj },
-          });
+          notificationId = await scheduleDateNotification(
+            'یادآوری لیست خرید 🛒',
+            `امروز روز "${listName.trim()}" ته! اگه خرید کردی جمع لیست رو بگو تا به هزینه‌ها اضافه کنم. اگه نکردی تاریخ رو تغییر بده`,
+            notifyDateObj
+          );
         } catch (e) {
           console.log('Failed to schedule notification:', e);
+        }
+
+        const nextDayObj = new Date(notifyDateObj);
+        nextDayObj.setDate(nextDayObj.getDate() + 1);
+        nextDayObj.setHours(9, 0, 0, 0);
+        try {
+          notificationIdNext = await scheduleDateNotification(
+            'تاریخ لیست خرید گذشته! ⚠️',
+            `تاریخ لیست "${listName.trim()}" گذشته! اگه هنوز خرید نکردی برو تاریخش رو عوض کن`,
+            nextDayObj
+          );
+        } catch (e) {
+          console.log('Failed to schedule next-day notification:', e);
         }
       }
     }
@@ -129,6 +161,7 @@ export default function ShoppingListScreen() {
       date: listDate,
       notifyDate: listNotifyDate.trim() || null,
       notificationId,
+      notificationIdNext,
     });
 
     setCreateModalVisible(false);
@@ -138,6 +171,23 @@ export default function ShoppingListScreen() {
     loadLists();
   };
 
+  const cancelListNotifications = async (list) => {
+    if (list.notification_id) {
+      try {
+        await Notifications.cancelScheduledNotificationAsync(list.notification_id);
+      } catch (e) {
+        console.log('Failed to cancel notification:', e);
+      }
+    }
+    if (list.notification_id_next) {
+      try {
+        await Notifications.cancelScheduledNotificationAsync(list.notification_id_next);
+      } catch (e) {
+        console.log('Failed to cancel next-day notification:', e);
+      }
+    }
+  };
+
   const handleDeleteList = (list) => {
     Alert.alert('حذف لیست', `لیست "${list.name}" حذف بشه؟`, [
       { text: 'نه', style: 'cancel' },
@@ -145,13 +195,7 @@ export default function ShoppingListScreen() {
         text: 'بله، حذف کن',
         style: 'destructive',
         onPress: async () => {
-          if (list.notification_id) {
-            try {
-              await Notifications.cancelScheduledNotificationAsync(list.notification_id);
-            } catch (e) {
-              console.log('Failed to cancel notification:', e);
-            }
-          }
+          await cancelListNotifications(list);
           await deleteShoppingList(db, list.id);
           if (expandedId === list.id) {
             setExpandedId(null);
@@ -237,6 +281,72 @@ export default function ShoppingListScreen() {
     });
     setExpenseModalVisible(false);
     Alert.alert('موفق', `هزینه "${expenseListName}" ثبت شد`);
+  };
+
+  const handleOpenEdit = (list) => {
+    setEditListId(list.id);
+    setEditName(list.name);
+    setEditDate(gregorianToJalali(list.date));
+    setEditNotifyDate(list.notify_date ? gregorianToJalali(list.notify_date) : '');
+    setEditOldNotificationId(list.notification_id);
+    setEditOldNotificationIdNext(list.notification_id_next);
+    setEditModalVisible(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editName.trim()) {
+      Alert.alert('خطا', 'نام لیست را وارد کنید');
+      return;
+    }
+
+    if (editOldNotificationId) {
+      try { await Notifications.cancelScheduledNotificationAsync(editOldNotificationId); } catch (e) {}
+    }
+    if (editOldNotificationIdNext) {
+      try { await Notifications.cancelScheduledNotificationAsync(editOldNotificationIdNext); } catch (e) {}
+    }
+
+    let notificationId = null;
+    let notificationIdNext = null;
+    if (editNotifyDate.trim()) {
+      const notifyDateObj = jalaliToDate(editNotifyDate);
+      if (notifyDateObj && notifyDateObj > new Date()) {
+        notifyDateObj.setHours(22, 0, 0, 0);
+        try {
+          notificationId = await scheduleDateNotification(
+            'یادآوری لیست خرید 🛒',
+            `امروز روز "${editName.trim()}" ته! اگه خرید کردی جمع لیست رو بگو تا به هزینه‌ها اضافه کنم. اگه نکردی تاریخ رو تغییر بده`,
+            notifyDateObj
+          );
+        } catch (e) {
+          console.log('Failed to schedule notification:', e);
+        }
+
+        const nextDayObj = new Date(notifyDateObj);
+        nextDayObj.setDate(nextDayObj.getDate() + 1);
+        nextDayObj.setHours(9, 0, 0, 0);
+        try {
+          notificationIdNext = await scheduleDateNotification(
+            'تاریخ لیست خرید گذشته! ⚠️',
+            `تاریخ لیست "${editName.trim()}" گذشته! اگه هنوز خرید نکردی برو تاریخش رو عوض کن`,
+            nextDayObj
+          );
+        } catch (e) {
+          console.log('Failed to schedule next-day notification:', e);
+        }
+      }
+    }
+
+    await updateShoppingList(db, editListId, {
+      name: editName.trim(),
+      date: editDate,
+      notifyDate: editNotifyDate.trim() || null,
+      notificationId,
+      notificationIdNext,
+    });
+
+    setEditModalVisible(false);
+    loadLists();
   };
 
   const handleShareList = async (list) => {
@@ -348,6 +458,12 @@ export default function ShoppingListScreen() {
                       </Text>
                     </View>
                     <View style={styles.actionBtns}>
+                      <TouchableOpacity
+                        onPress={() => handleOpenEdit(list)}
+                        style={styles.actionBtn}
+                      >
+                        <Text style={styles.actionBtnText}>✏️</Text>
+                      </TouchableOpacity>
                       <TouchableOpacity
                         onPress={() => handleShareList(list)}
                         style={styles.actionBtn}
@@ -607,6 +723,57 @@ export default function ShoppingListScreen() {
               <TouchableOpacity
                 style={styles.modalCancelBtn}
                 onPress={() => setExpenseModalVisible(false)}
+              >
+                <Text style={styles.modalCancelBtnText}>انصراف</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Edit List Modal */}
+      <Modal visible={editModalVisible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalIcon}>✏️</Text>
+              <Text style={styles.modalTitle}>ویرایش لیست خرید</Text>
+            </View>
+
+            <Text style={styles.modalLabel}>نام لیست</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="نام لیست"
+              value={editName}
+              onChangeText={setEditName}
+              placeholderTextColor={COLORS.textLight}
+            />
+
+            <Text style={styles.modalLabel}>📅 تاریخ خرید (شمسی)</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="۱۴۰۵/۰۳/۲۵"
+              value={editDate}
+              onChangeText={setEditDate}
+              placeholderTextColor={COLORS.textLight}
+            />
+
+            <Text style={styles.modalLabel}>🔔 تاریخ یادآوری (اختیاری)</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="۱۴۰۵/۰۳/۲۴"
+              value={editNotifyDate}
+              onChangeText={setEditNotifyDate}
+              placeholderTextColor={COLORS.textLight}
+            />
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.modalSaveBtn} onPress={handleSaveEdit}>
+                <Text style={styles.modalSaveBtnText}>ذخیره تغییرات</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => setEditModalVisible(false)}
               >
                 <Text style={styles.modalCancelBtnText}>انصراف</Text>
               </TouchableOpacity>

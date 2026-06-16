@@ -56,6 +56,7 @@ export async function migrateDbIfNeeded(db) {
       date TEXT NOT NULL,
       notify_date TEXT,
       notification_id TEXT,
+      notification_id_next TEXT,
       is_completed INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -69,6 +70,12 @@ export async function migrateDbIfNeeded(db) {
       FOREIGN KEY (list_id) REFERENCES shopping_lists(id) ON DELETE CASCADE
     );
   `);
+
+  try {
+    await db.runAsync('ALTER TABLE shopping_lists ADD COLUMN notification_id_next TEXT');
+  } catch (e) {
+    // column already exists
+  }
 
   const existing = await db.getFirstAsync('SELECT COUNT(*) as count FROM categories');
   if (existing.count === 0) {
