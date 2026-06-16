@@ -77,6 +77,13 @@ export async function migrateDbIfNeeded(db) {
       name TEXT NOT NULL,
       UNIQUE(category_id, name)
     );
+
+    CREATE TABLE IF NOT EXISTS custom_shopping_categories (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      icon TEXT NOT NULL DEFAULT '📦',
+      UNIQUE(name)
+    );
   `);
 
   try {

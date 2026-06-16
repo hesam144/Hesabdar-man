@@ -28,6 +28,8 @@ import {
   getCustomCatalogItems,
   addCustomCatalogItem,
   markShoppingListPurchased,
+  getCustomShoppingCategories,
+  addCustomShoppingCategory,
 } from '../database/queries';
 import {
   getTodayString,
@@ -75,6 +77,12 @@ export default function ShoppingListScreen() {
   const [customItemName, setCustomItemName] = useState('');
   const [customCategoryId, setCustomCategoryId] = useState(null);
 
+  const [newCatModalVisible, setNewCatModalVisible] = useState(false);
+  const [newCatName, setNewCatName] = useState('');
+  const [newCatIcon, setNewCatIcon] = useState('📦');
+
+  const CAT_ICON_OPTIONS = ['📦', '🧃', '🍜', '🥤', '🧊', '🍿', '🧈', '🫒', '🍯', '🥫', '🫘', '🧄', '🧅', '🌶️', '🥜', '🫧', '🧻', '🪥', '🧲', '🔌', '🪛', '🛠️', '💈', '🎒', '👜', '🧳', '🎽', '👓', '⌚', '🖨️', '📀', '🔋', '🧯', '🪣'];
+
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [listName, setListName] = useState('');
   const [listDate, setListDate] = useState(getTodayString());
@@ -111,7 +119,10 @@ export default function ShoppingListScreen() {
   }, [db]);
 
   const loadMergedCategories = useCallback(async () => {
-    const customItems = await getCustomCatalogItems(db);
+    const [customItems, customCats] = await Promise.all([
+      getCustomCatalogItems(db),
+      getCustomShoppingCategories(db),
+    ]);
     const merged = SHOPPING_CATEGORIES.map((cat) => {
       const extras = customItems
         .filter((ci) => ci.category_id === cat.id)
@@ -121,7 +132,13 @@ export default function ShoppingListScreen() {
         ? { ...cat, items: [...cat.items, ...extras] }
         : cat;
     });
-    setMergedCategories(merged);
+    const userCats = customCats.map((cc) => {
+      const items = customItems
+        .filter((ci) => ci.category_id === `custom_${cc.id}`)
+        .map((ci) => ci.name);
+      return { id: `custom_${cc.id}`, name: cc.name, icon: cc.icon, items };
+    });
+    setMergedCategories([...merged, ...userCats]);
   }, [db]);
 
   useFocusEffect(
@@ -285,6 +302,18 @@ export default function ShoppingListScreen() {
     }
     await addCustomCatalogItem(db, customCategoryId, customItemName.trim());
     setAddCustomModalVisible(false);
+    await loadMergedCategories();
+  };
+
+  const handleSaveNewCategory = async () => {
+    if (!newCatName.trim()) {
+      Alert.alert('خطا', 'نام دسته‌بندی را وارد کنید');
+      return;
+    }
+    await addCustomShoppingCategory(db, newCatName.trim(), newCatIcon);
+    setNewCatModalVisible(false);
+    setNewCatName('');
+    setNewCatIcon('📦');
     await loadMergedCategories();
   };
 
@@ -695,12 +724,20 @@ export default function ShoppingListScreen() {
                           </View>
                         );
                       })}
-                      <TouchableOpacity
-                        style={styles.addCustomCatalogBtn}
-                        onPress={handleOpenAddCustom}
-                      >
-                        <Text style={styles.addCustomCatalogBtnText}>+ افزودن آیتم جدید به دسته‌بندی</Text>
-                      </TouchableOpacity>
+                      <View style={styles.catalogBottomBtns}>
+                        <TouchableOpacity
+                          style={styles.addCustomCatalogBtn}
+                          onPress={handleOpenAddCustom}
+                        >
+                          <Text style={styles.addCustomCatalogBtnText}>+ افزودن آیتم</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[styles.addCustomCatalogBtn, { backgroundColor: COLORS.green }]}
+                          onPress={() => setNewCatModalVisible(true)}
+                        >
+                          <Text style={styles.addCustomCatalogBtnText}>+ دسته جدید</Text>
+                        </TouchableOpacity>
+                      </View>
                     </View>
                   )}
 
@@ -946,7 +983,7 @@ export default function ShoppingListScreen() {
             />
             <Text style={[styles.label, { marginTop: 12, marginBottom: 8 }]}>انتخاب دسته‌بندی:</Text>
             <ScrollView style={{ maxHeight: 200 }} nestedScrollEnabled>
-              {SHOPPING_CATEGORIES.map((cat) => (
+              {mergedCategories.map((cat) => (
                 <TouchableOpacity
                   key={cat.id}
                   style={[
@@ -970,6 +1007,48 @@ export default function ShoppingListScreen() {
               <TouchableOpacity
                 style={styles.modalCancelBtn}
                 onPress={() => setAddCustomModalVisible(false)}
+              >
+                <Text style={styles.modalCancelBtnText}>انصراف</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* New Category Modal */}
+      <Modal visible={newCatModalVisible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>ساخت دسته‌بندی جدید</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="نام دسته‌بندی (مثلاً لوازم ورزشی)"
+              value={newCatName}
+              onChangeText={setNewCatName}
+              placeholderTextColor={COLORS.textLight}
+            />
+            <Text style={[styles.label, { marginTop: 12, marginBottom: 8 }]}>آیکون انتخاب کنید:</Text>
+            <View style={styles.newCatIconGrid}>
+              {CAT_ICON_OPTIONS.map((icon) => (
+                <TouchableOpacity
+                  key={icon}
+                  style={[
+                    styles.newCatIconOption,
+                    newCatIcon === icon && styles.newCatIconOptionActive,
+                  ]}
+                  onPress={() => setNewCatIcon(icon)}
+                >
+                  <Text style={{ fontSize: 22 }}>{icon}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.modalSaveBtn} onPress={handleSaveNewCategory}>
+                <Text style={styles.modalSaveBtnText}>ذخیره</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => setNewCatModalVisible(false)}
               >
                 <Text style={styles.modalCancelBtnText}>انصراف</Text>
               </TouchableOpacity>
@@ -1557,8 +1636,13 @@ const styles = StyleSheet.create({
     color: COLORS.textLight,
     fontSize: 14,
   },
-  addCustomCatalogBtn: {
+  catalogBottomBtns: {
+    flexDirection: 'row',
+    gap: 8,
     marginTop: 10,
+  },
+  addCustomCatalogBtn: {
+    flex: 1,
     paddingVertical: 10,
     backgroundColor: COLORS.primary,
     borderRadius: 10,
@@ -1601,5 +1685,26 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.text,
     textAlign: 'right',
+  },
+  newCatIconGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  newCatIconOption: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.card,
+    borderWidth: 2,
+    borderColor: COLORS.border,
+  },
+  newCatIconOptionActive: {
+    borderColor: COLORS.primary,
+    backgroundColor: '#E3F2FD',
   },
 });

@@ -311,3 +311,17 @@ export async function addCustomCatalogItem(db, categoryId, name) {
     name
   );
 }
+
+// --- Custom Shopping Categories ---
+
+export async function getCustomShoppingCategories(db) {
+  return db.getAllAsync('SELECT * FROM custom_shopping_categories ORDER BY name');
+}
+
+export async function addCustomShoppingCategory(db, name, icon) {
+  return db.runAsync(
+    'INSERT OR IGNORE INTO custom_shopping_categories (name, icon) VALUES (?, ?)',
+    name,
+    icon || '📦'
+  );
+}
