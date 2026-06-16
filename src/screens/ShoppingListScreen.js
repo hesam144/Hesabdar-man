@@ -31,6 +31,7 @@ import {
   jalaliToDate,
 } from '../utils/date';
 import { COLORS } from '../utils/colors';
+import SHOPPING_CATEGORIES from '../utils/shoppingCategories';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -47,6 +48,8 @@ export default function ShoppingListScreen() {
   const [expandedItems, setExpandedItems] = useState([]);
   const [newItemName, setNewItemName] = useState('');
   const [newItemQty, setNewItemQty] = useState('');
+  const [showCatalog, setShowCatalog] = useState(false);
+  const [openCategoryId, setOpenCategoryId] = useState(null);
 
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [listName, setListName] = useState('');
@@ -111,7 +114,7 @@ export default function ShoppingListScreen() {
           notificationId = await Notifications.scheduleNotificationAsync({
             content: {
               title: 'یادآوری لیست خرید 🛒',
-              body: `امروز باید "${listName.trim()}" رو خرید کنی!`,
+              body: `امروز روز "${listName.trim()}" ته! اگه خرید کردی جمع لیست رو بگو تا به هزینه‌ها اضافه کنم`,
             },
             trigger: { date: notifyDateObj },
           });
@@ -176,6 +179,21 @@ export default function ShoppingListScreen() {
     setNewItemQty('');
     await loadItems(expandedId);
     loadLists();
+  };
+
+  const handleAddFromCatalog = async (itemName) => {
+    if (!expandedId) return;
+    await addShoppingItem(db, {
+      listId: expandedId,
+      name: itemName,
+      quantity: '',
+    });
+    await loadItems(expandedId);
+    loadLists();
+  };
+
+  const toggleCatalogCategory = (catId) => {
+    setOpenCategoryId(openCategoryId === catId ? null : catId);
   };
 
   const handleToggleItem = async (item) => {
@@ -364,7 +382,7 @@ export default function ShoppingListScreen() {
 
               {isExpanded && (
                 <View style={styles.itemsContainer}>
-                  {expandedItems.length === 0 && (
+                  {expandedItems.length === 0 && !showCatalog && (
                     <Text style={styles.noItemsText}>هنوز آیتمی اضافه نشده</Text>
                   )}
 
@@ -401,6 +419,7 @@ export default function ShoppingListScreen() {
                     </View>
                   ))}
 
+                  {/* Manual add row */}
                   <View style={styles.addItemRow}>
                     <TextInput
                       style={styles.addItemInput}
@@ -420,6 +439,57 @@ export default function ShoppingListScreen() {
                       <Text style={styles.addItemBtnText}>+</Text>
                     </TouchableOpacity>
                   </View>
+
+                  {/* Catalog toggle */}
+                  <TouchableOpacity
+                    style={styles.catalogToggle}
+                    onPress={() => { setShowCatalog(!showCatalog); setOpenCategoryId(null); }}
+                  >
+                    <Text style={styles.catalogToggleText}>
+                      {showCatalog ? '▲ بستن اقلام پیشنهادی' : '📋 انتخاب از اقلام پیشنهادی'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  {/* Catalog accordion */}
+                  {showCatalog && (
+                    <View style={styles.catalogContainer}>
+                      {SHOPPING_CATEGORIES.map((cat) => {
+                        const isOpen = openCategoryId === cat.id;
+                        const existingNames = expandedItems.map((i) => i.name);
+                        return (
+                          <View key={cat.id}>
+                            <TouchableOpacity
+                              style={[styles.catalogHeader, isOpen && styles.catalogHeaderOpen]}
+                              onPress={() => toggleCatalogCategory(cat.id)}
+                            >
+                              <Text style={styles.catalogHeaderIcon}>{cat.icon}</Text>
+                              <Text style={styles.catalogHeaderText}>{cat.name}</Text>
+                              <Text style={styles.catalogHeaderArrow}>{isOpen ? '▲' : '▼'}</Text>
+                            </TouchableOpacity>
+                            {isOpen && (
+                              <View style={styles.catalogItems}>
+                                {cat.items.map((itemName) => {
+                                  const alreadyAdded = existingNames.includes(itemName);
+                                  return (
+                                    <TouchableOpacity
+                                      key={itemName}
+                                      style={[styles.catalogItem, alreadyAdded && styles.catalogItemAdded]}
+                                      onPress={() => !alreadyAdded && handleAddFromCatalog(itemName)}
+                                      disabled={alreadyAdded}
+                                    >
+                                      <Text style={[styles.catalogItemText, alreadyAdded && styles.catalogItemTextAdded]}>
+                                        {alreadyAdded ? '✓ ' : '+ '}{itemName}
+                                      </Text>
+                                    </TouchableOpacity>
+                                  );
+                                })}
+                              </View>
+                            )}
+                          </View>
+                        );
+                      })}
+                    </View>
+                  )}
                 </View>
               )}
             </View>
@@ -984,5 +1054,88 @@ const styles = StyleSheet.create({
   categoryChipTextActive: {
     color: COLORS.primary,
     fontWeight: '600',
+  },
+  catalogToggle: {
+    marginTop: 12,
+    backgroundColor: '#EDF2F7',
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderStyle: 'dashed',
+  },
+  catalogToggleText: {
+    fontSize: 14,
+    color: COLORS.primary,
+    fontWeight: '600',
+  },
+  catalogContainer: {
+    marginTop: 10,
+  },
+  catalogHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.background,
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 4,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  catalogHeaderOpen: {
+    backgroundColor: '#E8F0FE',
+    borderColor: COLORS.primary,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+    marginBottom: 0,
+  },
+  catalogHeaderIcon: {
+    fontSize: 20,
+    marginLeft: 8,
+  },
+  catalogHeaderText: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '600',
+    color: COLORS.text,
+    textAlign: 'right',
+  },
+  catalogHeaderArrow: {
+    fontSize: 11,
+    color: COLORS.textLight,
+  },
+  catalogItems: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    padding: 10,
+    backgroundColor: '#FAFBFC',
+    borderWidth: 1,
+    borderTopWidth: 0,
+    borderColor: COLORS.primary,
+    borderBottomLeftRadius: 10,
+    borderBottomRightRadius: 10,
+    marginBottom: 4,
+  },
+  catalogItem: {
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  catalogItemAdded: {
+    backgroundColor: '#E8F5E9',
+    borderColor: COLORS.green,
+  },
+  catalogItemText: {
+    fontSize: 13,
+    color: COLORS.text,
+  },
+  catalogItemTextAdded: {
+    color: COLORS.green,
   },
 });
