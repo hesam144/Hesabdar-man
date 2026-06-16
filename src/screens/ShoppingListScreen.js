@@ -80,7 +80,29 @@ export default function ShoppingListScreen() {
   const [newItemNewCategoryIcon, setNewItemNewCategoryIcon] = useState('📦');
   const [showNewCategoryInput, setShowNewCategoryInput] = useState(false);
 
-  const CAT_ICON_OPTIONS = ['📦', '🧃', '🍜', '🥤', '🧊', '🍿', '🧈', '🫒', '🍯', '🥫', '🫘', '🧄', '🧅', '🌶️', '🥜', '🫧', '🧻', '🪥', '🧲', '🔌', '🪛', '🛠️', '💈', '🎒', '👜', '🧳', '🎽', '👓', '⌚', '🖨️', '📀', '🔋', '🧯', '🪣'];
+  const CAT_ICON_OPTIONS = [
+    // غذا و نوشیدنی
+    '🍞', '🥖', '🥐', '🧀', '🥚', '🥩', '🍗', '🍖', '🌭', '🍕', '🍔', '🌮', '🥗', '🍜', '🍝', '🍣', '🍱', '🍙', '🍚', '🍛',
+    '🥫', '🫘', '🧄', '🧅', '🌶️', '🥜', '🥕', '🍅', '🥒', '🥬', '🥦', '🍆', '🫑', '🌽', '🥔',
+    '🍎', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🫐', '🍑', '🥝', '🥭', '🍍',
+    '🥛', '🧃', '🥤', '☕', '🍵', '🧊', '🍿', '🧈', '🫒', '🍯', '🍫', '🍪', '🎂', '🍰', '🍩',
+    // بهداشتی و شوینده
+    '🧴', '🧼', '🪥', '🧽', '🧻', '🫧', '💊', '💉', '🩹', '🩺',
+    // ابزار و الکترونیک
+    '🔌', '🔋', '💡', '🔧', '🪛', '🔨', '🧲', '⚙️', '🛠️', '📱', '💻', '🖨️', '📀', '🎧', '📷',
+    // پوشاک و کیف
+    '👕', '👖', '👗', '👟', '👠', '🧦', '🧤', '🧣', '👒', '🎽', '👓', '⌚', '💍', '👜', '🎒', '🧳',
+    // حیوانات
+    '🐱', '🐶', '🐦', '🐟', '🐰', '🐹',
+    // ورزش و سرگرمی
+    '⚽', '🏀', '🎾', '🏊', '🚴', '🎮', '🎯', '🎨', '🎵',
+    // خانه و نظافت
+    '🏠', '🛋️', '🛏️', '🪑', '🧹', '🪣', '🧯', '🪴', '💈',
+    // حمل و نقل
+    '🚗', '🚕', '🛵', '⛽', '🚌',
+    // متفرقه
+    '📦', '🛒', '🎁', '📚', '✏️', '📎', '🗂️', '💰', '🏷️', '⭐', '❤️', '🔑',
+  ];
 
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [listName, setListName] = useState('');
@@ -744,7 +766,7 @@ export default function ShoppingListScreen() {
       </TouchableOpacity>
 
       {/* Create List Modal */}
-      <Modal visible={createModalVisible} transparent animationType="slide">
+      <Modal visible={createModalVisible} transparent animationType="slide" onRequestClose={() => setCreateModalVisible(false)}>
         <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <View style={styles.modalContent}>
             <View style={styles.modalHandle} />
@@ -795,7 +817,7 @@ export default function ShoppingListScreen() {
       </Modal>
 
       {/* Expense Modal */}
-      <Modal visible={expenseModalVisible} transparent animationType="slide">
+      <Modal visible={expenseModalVisible} transparent animationType="slide" onRequestClose={() => setExpenseModalVisible(false)}>
         <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <View style={styles.modalContent}>
             <View style={styles.modalHandle} />
@@ -858,7 +880,7 @@ export default function ShoppingListScreen() {
       </Modal>
 
       {/* Edit List Modal */}
-      <Modal visible={editModalVisible} transparent animationType="slide">
+      <Modal visible={editModalVisible} transparent animationType="slide" onRequestClose={() => setEditModalVisible(false)}>
         <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <View style={styles.modalContent}>
             <View style={styles.modalHandle} />
@@ -910,7 +932,7 @@ export default function ShoppingListScreen() {
       </Modal>
 
       {/* Quantity Prompt Modal */}
-      <Modal visible={qtyModalVisible} transparent animationType="slide">
+      <Modal visible={qtyModalVisible} transparent animationType="slide" onRequestClose={() => setQtyModalVisible(false)}>
         <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <View style={styles.modalContent}>
             <View style={styles.modalHandle} />
@@ -940,13 +962,13 @@ export default function ShoppingListScreen() {
       </Modal>
 
       {/* Unified Add New Item Modal */}
-      <Modal visible={addNewModalVisible} transparent animationType="slide">
+      <Modal visible={addNewModalVisible} transparent animationType="slide" onRequestClose={() => setAddNewModalVisible(false)}>
         <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          <ScrollView contentContainerStyle={styles.modalScrollContent}>
-            <View style={styles.modalContent}>
-              <View style={styles.modalHandle} />
-              <Text style={styles.modalTitle}>افزودن آیتم جدید</Text>
+          <View style={[styles.modalContent, { maxHeight: '85%' }]}>
+            <View style={styles.modalHandle} />
+            <Text style={styles.modalTitle}>افزودن آیتم جدید</Text>
 
+            <ScrollView showsVerticalScrollIndicator={false} nestedScrollEnabled style={{ flexShrink: 1 }}>
               <Text style={[styles.label, { marginBottom: 6 }]}>نام کالا</Text>
               <TextInput
                 style={styles.modalInput}
@@ -966,27 +988,25 @@ export default function ShoppingListScreen() {
                 placeholderTextColor={COLORS.textLight}
               />
 
-              <Text style={[styles.label, { marginTop: 12, marginBottom: 6 }]}>دسته‌بندی</Text>
+              <Text style={[styles.label, { marginTop: 12, marginBottom: 6 }]}>دسته‌بندی (اختیاری)</Text>
               {!showNewCategoryInput ? (
                 <>
-                  <ScrollView style={{ maxHeight: 180 }} nestedScrollEnabled>
-                    {mergedCategories.map((cat) => (
-                      <TouchableOpacity
-                        key={cat.id}
-                        style={[
-                          styles.customCatOption,
-                          newItemCategoryId === cat.id && styles.customCatOptionActive,
-                        ]}
-                        onPress={() => setNewItemCategoryId(cat.id)}
-                      >
-                        <Text style={styles.customCatOptionIcon}>{cat.icon}</Text>
-                        <Text style={[
-                          styles.customCatOptionText,
-                          newItemCategoryId === cat.id && styles.customCatOptionTextActive,
-                        ]}>{cat.name}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
+                  {mergedCategories.map((cat) => (
+                    <TouchableOpacity
+                      key={cat.id}
+                      style={[
+                        styles.customCatOption,
+                        newItemCategoryId === cat.id && styles.customCatOptionActive,
+                      ]}
+                      onPress={() => setNewItemCategoryId(cat.id)}
+                    >
+                      <Text style={styles.customCatOptionIcon}>{cat.icon}</Text>
+                      <Text style={[
+                        styles.customCatOptionText,
+                        newItemCategoryId === cat.id && styles.customCatOptionTextActive,
+                      ]}>{cat.name}</Text>
+                    </TouchableOpacity>
+                  ))}
                   <TouchableOpacity
                     style={styles.newCategoryToggle}
                     onPress={() => { setShowNewCategoryInput(true); setNewItemCategoryId(null); }}
@@ -1026,20 +1046,20 @@ export default function ShoppingListScreen() {
                   </TouchableOpacity>
                 </View>
               )}
+            </ScrollView>
 
-              <View style={styles.modalActions}>
-                <TouchableOpacity style={styles.modalSaveBtn} onPress={handleSaveNewItem}>
-                  <Text style={styles.modalSaveBtnText}>ذخیره و افزودن</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.modalCancelBtn}
-                  onPress={() => setAddNewModalVisible(false)}
-                >
-                  <Text style={styles.modalCancelBtnText}>انصراف</Text>
-                </TouchableOpacity>
-              </View>
+            <View style={[styles.modalActions, { marginTop: 16 }]}>
+              <TouchableOpacity style={styles.modalSaveBtn} onPress={handleSaveNewItem}>
+                <Text style={styles.modalSaveBtnText}>ذخیره و افزودن</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => setAddNewModalVisible(false)}
+              >
+                <Text style={styles.modalCancelBtnText}>انصراف</Text>
+              </TouchableOpacity>
             </View>
-          </ScrollView>
+          </View>
         </KeyboardAvoidingView>
       </Modal>
     </View>
