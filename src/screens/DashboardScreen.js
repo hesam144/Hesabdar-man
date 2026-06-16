@@ -61,7 +61,7 @@ export default function DashboardScreen() {
         <Text
           style={[
             styles.balanceAmount,
-            { color: monthly.balance >= 0 ? COLORS.green : COLORS.red },
+            { color: monthly.balance >= 0 ? '#FFFFFF' : '#FFCDD2' },
           ]}
         >
           {formatCurrency(monthly.balance)}
