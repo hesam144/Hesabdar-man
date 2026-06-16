@@ -49,6 +49,25 @@ export async function migrateDbIfNeeded(db) {
       FOREIGN KEY (category_id) REFERENCES categories(id),
       UNIQUE(category_id, month, year)
     );
+
+    CREATE TABLE IF NOT EXISTS shopping_lists (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      date TEXT NOT NULL,
+      notify_date TEXT,
+      notification_id TEXT,
+      is_completed INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS shopping_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      list_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      quantity TEXT DEFAULT '',
+      is_checked INTEGER NOT NULL DEFAULT 0,
+      FOREIGN KEY (list_id) REFERENCES shopping_lists(id) ON DELETE CASCADE
+    );
   `);
 
   const existing = await db.getFirstAsync('SELECT COUNT(*) as count FROM categories');

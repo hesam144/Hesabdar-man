@@ -1,12 +1,15 @@
+import { getMonthDateRange, jalaliToGregorian } from '../utils/date';
+
 // --- Transactions ---
 
 export async function addTransaction(db, { amount, categoryId, description, date, type }) {
+  const gDate = jalaliToGregorian(date) || date;
   return db.runAsync(
     'INSERT INTO transactions (amount, category_id, description, date, type) VALUES (?, ?, ?, ?, ?)',
     amount,
     categoryId,
     description || '',
-    date,
+    gDate,
     type
   );
 }
@@ -15,24 +18,20 @@ export async function deleteTransaction(db, id) {
   return db.runAsync('DELETE FROM transactions WHERE id = ?', id);
 }
 
-export async function getTransactionsByDate(db, date) {
+export async function getTransactionsByDate(db, jalaliDate) {
+  const gDate = jalaliToGregorian(jalaliDate) || jalaliDate;
   return db.getAllAsync(
     `SELECT t.*, c.name as category_name, c.icon as category_icon
      FROM transactions t
      JOIN categories c ON t.category_id = c.id
      WHERE t.date = ?
      ORDER BY t.created_at DESC`,
-    date
+    gDate
   );
 }
 
-export async function getTransactionsByMonth(db, year, month) {
-  const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
-  const endDate =
-    month === 12
-      ? `${year + 1}-01-01`
-      : `${year}-${String(month + 1).padStart(2, '0')}-01`;
-
+export async function getTransactionsByMonth(db, jYear, jMonth) {
+  const { startDate, endDate } = getMonthDateRange(jYear, jMonth);
   return db.getAllAsync(
     `SELECT t.*, c.name as category_name, c.icon as category_icon
      FROM transactions t
@@ -46,12 +45,8 @@ export async function getTransactionsByMonth(db, year, month) {
 
 // --- Summaries ---
 
-export async function getMonthlySummary(db, year, month) {
-  const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
-  const endDate =
-    month === 12
-      ? `${year + 1}-01-01`
-      : `${year}-${String(month + 1).padStart(2, '0')}-01`;
+export async function getMonthlySummary(db, jYear, jMonth) {
+  const { startDate, endDate } = getMonthDateRange(jYear, jMonth);
 
   const expenses = await db.getFirstAsync(
     `SELECT COALESCE(SUM(amount), 0) as total
@@ -76,23 +71,19 @@ export async function getMonthlySummary(db, year, month) {
   };
 }
 
-export async function getDailySummary(db, date) {
+export async function getDailySummary(db, jalaliDate) {
+  const gDate = jalaliToGregorian(jalaliDate) || jalaliDate;
   const expenses = await db.getFirstAsync(
     `SELECT COALESCE(SUM(amount), 0) as total
      FROM transactions
      WHERE type = 'expense' AND date = ?`,
-    date
+    gDate
   );
   return { totalExpenses: expenses.total };
 }
 
-export async function getExpensesByCategory(db, year, month) {
-  const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
-  const endDate =
-    month === 12
-      ? `${year + 1}-01-01`
-      : `${year}-${String(month + 1).padStart(2, '0')}-01`;
-
+export async function getExpensesByCategory(db, jYear, jMonth) {
+  const { startDate, endDate } = getMonthDateRange(jYear, jMonth);
   return db.getAllAsync(
     `SELECT c.id, c.name, c.icon, COALESCE(SUM(t.amount), 0) as total
      FROM categories c
@@ -107,13 +98,8 @@ export async function getExpensesByCategory(db, year, month) {
   );
 }
 
-export async function getDailyExpensesForMonth(db, year, month) {
-  const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
-  const endDate =
-    month === 12
-      ? `${year + 1}-01-01`
-      : `${year}-${String(month + 1).padStart(2, '0')}-01`;
-
+export async function getDailyExpensesForMonth(db, jYear, jMonth) {
+  const { startDate, endDate } = getMonthDateRange(jYear, jMonth);
   return db.getAllAsync(
     `SELECT date, SUM(amount) as total
      FROM transactions
@@ -158,7 +144,8 @@ export async function setBudget(db, { categoryId, amount, month, year }) {
   );
 }
 
-export async function getBudgets(db, year, month) {
+export async function getBudgets(db, jYear, jMonth) {
+  const { startDate, endDate } = getMonthDateRange(jYear, jMonth);
   return db.getAllAsync(
     `SELECT b.*, c.name as category_name, c.icon as category_icon,
             COALESCE((
@@ -172,10 +159,10 @@ export async function getBudgets(db, year, month) {
      JOIN categories c ON b.category_id = c.id
      WHERE b.month = ? AND b.year = ?
      ORDER BY c.name`,
-    `${year}-${String(month).padStart(2, '0')}-01`,
-    month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, '0')}-01`,
-    month,
-    year
+    startDate,
+    endDate,
+    jMonth,
+    jYear
   );
 }
 
@@ -185,11 +172,11 @@ export async function deleteBudget(db, id) {
 
 // --- Savings tips ---
 
-export async function getSavingsTips(db, year, month) {
-  const prevMonth = month === 1 ? 12 : month - 1;
-  const prevYear = month === 1 ? year - 1 : year;
+export async function getSavingsTips(db, jYear, jMonth) {
+  const prevMonth = jMonth === 1 ? 12 : jMonth - 1;
+  const prevYear = jMonth === 1 ? jYear - 1 : jYear;
 
-  const currentByCategory = await getExpensesByCategory(db, year, month);
+  const currentByCategory = await getExpensesByCategory(db, jYear, jMonth);
   const previousByCategory = await getExpensesByCategory(db, prevYear, prevMonth);
 
   const prevMap = {};
@@ -216,4 +203,77 @@ export async function getSavingsTips(db, year, month) {
   }
 
   return tips.sort((a, b) => b.increasePercent - a.increasePercent);
+}
+
+// --- Shopping Lists ---
+
+export async function createShoppingList(db, { name, date, notifyDate, notificationId }) {
+  const gDate = jalaliToGregorian(date) || date;
+  const gNotifyDate = notifyDate ? (jalaliToGregorian(notifyDate) || notifyDate) : null;
+  return db.runAsync(
+    'INSERT INTO shopping_lists (name, date, notify_date, notification_id) VALUES (?, ?, ?, ?)',
+    name,
+    gDate,
+    gNotifyDate,
+    notificationId || null
+  );
+}
+
+export async function getShoppingLists(db) {
+  return db.getAllAsync(
+    `SELECT sl.*,
+            (SELECT COUNT(*) FROM shopping_items si WHERE si.list_id = sl.id) as total_items,
+            (SELECT COUNT(*) FROM shopping_items si WHERE si.list_id = sl.id AND si.is_checked = 1) as checked_items
+     FROM shopping_lists sl
+     ORDER BY sl.is_completed ASC, sl.date DESC, sl.created_at DESC`
+  );
+}
+
+export async function getShoppingListById(db, id) {
+  return db.getFirstAsync('SELECT * FROM shopping_lists WHERE id = ?', id);
+}
+
+export async function deleteShoppingList(db, id) {
+  await db.runAsync('DELETE FROM shopping_items WHERE list_id = ?', id);
+  return db.runAsync('DELETE FROM shopping_lists WHERE id = ?', id);
+}
+
+export async function toggleShoppingListComplete(db, id, isCompleted) {
+  return db.runAsync('UPDATE shopping_lists SET is_completed = ? WHERE id = ?', isCompleted ? 1 : 0, id);
+}
+
+export async function updateShoppingListNotification(db, id, notifyDate, notificationId) {
+  const gNotifyDate = notifyDate ? (jalaliToGregorian(notifyDate) || notifyDate) : null;
+  return db.runAsync(
+    'UPDATE shopping_lists SET notify_date = ?, notification_id = ? WHERE id = ?',
+    gNotifyDate,
+    notificationId || null,
+    id
+  );
+}
+
+// --- Shopping Items ---
+
+export async function addShoppingItem(db, { listId, name, quantity }) {
+  return db.runAsync(
+    'INSERT INTO shopping_items (list_id, name, quantity) VALUES (?, ?, ?)',
+    listId,
+    name,
+    quantity || ''
+  );
+}
+
+export async function getShoppingItems(db, listId) {
+  return db.getAllAsync(
+    'SELECT * FROM shopping_items WHERE list_id = ? ORDER BY is_checked ASC, id ASC',
+    listId
+  );
+}
+
+export async function toggleShoppingItem(db, id, isChecked) {
+  return db.runAsync('UPDATE shopping_items SET is_checked = ? WHERE id = ?', isChecked ? 1 : 0, id);
+}
+
+export async function deleteShoppingItem(db, id) {
+  return db.runAsync('DELETE FROM shopping_items WHERE id = ?', id);
 }

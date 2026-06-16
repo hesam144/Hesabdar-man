@@ -14,15 +14,14 @@ import {
   formatNumber,
   getPreviousMonth,
   getNextMonth,
+  getMonthName,
+  gregorianToJalali,
 } from '../utils/date';
 import { COLORS, CHART_COLORS } from '../utils/colors';
 
 const screenWidth = Dimensions.get('window').width - 32;
 
-const MONTH_NAMES = [
-  '', 'ژانویه', 'فوریه', 'مارس', 'آوریل', 'مه', 'ژوئن',
-  'ژوئیه', 'اوت', 'سپتامبر', 'اکتبر', 'نوامبر', 'دسامبر',
-];
+
 
 export default function ReportScreen() {
   const db = useSQLiteContext();
@@ -69,7 +68,10 @@ export default function ReportScreen() {
     legendFontSize: 12,
   }));
 
-  const barLabels = dailyData.map((d) => d.date.split('-')[2]);
+  const barLabels = dailyData.map((d) => {
+    const jDate = gregorianToJalali(d.date);
+    return jDate.split('/')[2];
+  });
   const barValues = dailyData.map((d) => d.total);
 
   return (
@@ -80,7 +82,7 @@ export default function ReportScreen() {
           <Text style={styles.navBtnText}>{'>'}</Text>
         </TouchableOpacity>
         <Text style={styles.monthTitle}>
-          {MONTH_NAMES[month]} {year}
+          {getMonthName(month)} {year}
         </Text>
         <TouchableOpacity onPress={goPrev} style={styles.navBtn}>
           <Text style={styles.navBtnText}>{'<'}</Text>
