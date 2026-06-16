@@ -9,8 +9,6 @@ import {
   Alert,
   Modal,
   Share,
-  KeyboardAvoidingView,
-  Platform,
 } from 'react-native';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useFocusEffect } from '@react-navigation/native';
@@ -767,7 +765,7 @@ export default function ShoppingListScreen() {
 
       {/* Create List Modal */}
       <Modal visible={createModalVisible} transparent animationType="slide" onRequestClose={() => setCreateModalVisible(false)}>
-        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHandle} />
             <View style={styles.modalHeader}>
@@ -813,12 +811,12 @@ export default function ShoppingListScreen() {
               </TouchableOpacity>
             </View>
           </View>
-        </KeyboardAvoidingView>
+        </View>
       </Modal>
 
       {/* Expense Modal */}
       <Modal visible={expenseModalVisible} transparent animationType="slide" onRequestClose={() => setExpenseModalVisible(false)}>
-        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHandle} />
             <View style={styles.modalHeader}>
@@ -876,12 +874,12 @@ export default function ShoppingListScreen() {
               </TouchableOpacity>
             </View>
           </View>
-        </KeyboardAvoidingView>
+        </View>
       </Modal>
 
       {/* Edit List Modal */}
       <Modal visible={editModalVisible} transparent animationType="slide" onRequestClose={() => setEditModalVisible(false)}>
-        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHandle} />
             <View style={styles.modalHeader}>
@@ -928,12 +926,12 @@ export default function ShoppingListScreen() {
               </TouchableOpacity>
             </View>
           </View>
-        </KeyboardAvoidingView>
+        </View>
       </Modal>
 
       {/* Quantity Prompt Modal */}
       <Modal visible={qtyModalVisible} transparent animationType="slide" onRequestClose={() => setQtyModalVisible(false)}>
-        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHandle} />
             <Text style={styles.modalTitle}>تعداد «{qtyItemName}»</Text>
@@ -958,12 +956,12 @@ export default function ShoppingListScreen() {
               </TouchableOpacity>
             </View>
           </View>
-        </KeyboardAvoidingView>
+        </View>
       </Modal>
 
       {/* Unified Add New Item Modal */}
       <Modal visible={addNewModalVisible} transparent animationType="slide" onRequestClose={() => setAddNewModalVisible(false)}>
-        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { maxHeight: '85%' }]}>
             <View style={styles.modalHandle} />
             <Text style={styles.modalTitle}>افزودن آیتم جدید</Text>
@@ -1060,7 +1058,7 @@ export default function ShoppingListScreen() {
               </TouchableOpacity>
             </View>
           </View>
-        </KeyboardAvoidingView>
+        </View>
       </Modal>
     </View>
   );
