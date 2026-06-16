@@ -22,6 +22,8 @@ import {
   getShoppingItems,
   toggleShoppingItem,
   deleteShoppingItem,
+  addTransaction,
+  getCategories,
 } from '../database/queries';
 import {
   getTodayString,
@@ -50,6 +52,14 @@ export default function ShoppingListScreen() {
   const [listName, setListName] = useState('');
   const [listDate, setListDate] = useState(getTodayString());
   const [listNotifyDate, setListNotifyDate] = useState('');
+
+  const [expenseModalVisible, setExpenseModalVisible] = useState(false);
+  const [expenseListId, setExpenseListId] = useState(null);
+  const [expenseListName, setExpenseListName] = useState('');
+  const [expenseListDate, setExpenseListDate] = useState('');
+  const [expenseAmount, setExpenseAmount] = useState('');
+  const [expenseCategories, setExpenseCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -180,27 +190,51 @@ export default function ShoppingListScreen() {
     loadLists();
   };
 
+  const handleAddExpense = async (list) => {
+    const cats = await getCategories(db, 'expense');
+    setExpenseCategories(cats);
+    setExpenseListId(list.id);
+    setExpenseListName(list.name);
+    setExpenseListDate(gregorianToJalali(list.date));
+    setExpenseAmount('');
+    setSelectedCategory(null);
+    setExpenseModalVisible(true);
+  };
+
+  const handleSubmitExpense = async () => {
+    if (!expenseAmount || parseFloat(expenseAmount) <= 0) {
+      Alert.alert('خطا', 'مبلغ را وارد کنید');
+      return;
+    }
+    if (!selectedCategory) {
+      Alert.alert('خطا', 'دسته‌بندی را انتخاب کنید');
+      return;
+    }
+    await addTransaction(db, {
+      amount: parseFloat(expenseAmount),
+      categoryId: selectedCategory.id,
+      description: `لیست خرید: ${expenseListName}`,
+      date: expenseListDate,
+      type: 'expense',
+    });
+    setExpenseModalVisible(false);
+    Alert.alert('موفق', `هزینه "${expenseListName}" ثبت شد`);
+  };
+
   const handleShareList = async (list) => {
     const items = await getShoppingItems(db, list.id);
-    const checked = items.filter((i) => i.is_checked).length;
-    const total = items.length;
 
     const itemLines = items.map((i) => {
-      const check = i.is_checked ? '  ✅' : '  🔲';
       const qty = i.quantity ? `  ×${i.quantity}` : '';
-      return `${check}  ${i.name}${qty}`;
+      return `• ${i.name}${qty}`;
     });
 
     const text = [
-      '🛒 ─────────────────',
-      `   ${list.name}`,
-      '─────────────────────',
-      `📅  ${gregorianToJalali(list.date)}`,
-      `📊  ${checked} از ${total} آیتم خریداری شده`,
+      `🛒 لیست خرید: ${list.name}`,
+      `📅 ${gregorianToJalali(list.date)}`,
       '',
       ...itemLines,
       '',
-      '─────────────────────',
       '📱 حسابدار من',
     ].join('\n');
 
@@ -317,6 +351,15 @@ export default function ShoppingListScreen() {
                     {isExpanded ? '▲ بستن' : '▼ مشاهده آیتم‌ها'}
                   </Text>
                 </View>
+
+                {list.is_completed && list.total_items > 0 && (
+                  <TouchableOpacity
+                    style={styles.addExpenseBtn}
+                    onPress={() => handleAddExpense(list)}
+                  >
+                    <Text style={styles.addExpenseBtnText}>💰 ثبت در مخارج</Text>
+                  </TouchableOpacity>
+                )}
               </TouchableOpacity>
 
               {isExpanded && (
@@ -432,6 +475,68 @@ export default function ShoppingListScreen() {
               <TouchableOpacity
                 style={styles.modalCancelBtn}
                 onPress={() => { setCreateModalVisible(false); setListName(''); }}
+              >
+                <Text style={styles.modalCancelBtnText}>انصراف</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Expense Modal */}
+      <Modal visible={expenseModalVisible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalIcon}>💰</Text>
+              <Text style={styles.modalTitle}>ثبت هزینه خرید</Text>
+            </View>
+
+            <Text style={styles.expenseListInfo}>
+              لیست: {expenseListName}  |  📅 {expenseListDate}
+            </Text>
+
+            <Text style={styles.modalLabel}>مبلغ کل (تومان)</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="مثلاً ۵۰۰۰۰۰"
+              keyboardType="numeric"
+              value={expenseAmount}
+              onChangeText={setExpenseAmount}
+              placeholderTextColor={COLORS.textLight}
+            />
+
+            <Text style={styles.modalLabel}>دسته‌بندی</Text>
+            <ScrollView style={styles.categoryScroll} nestedScrollEnabled horizontal={false}>
+              <View style={styles.categoryGrid}>
+                {expenseCategories.map((cat) => (
+                  <TouchableOpacity
+                    key={cat.id}
+                    style={[
+                      styles.categoryChip,
+                      selectedCategory?.id === cat.id && styles.categoryChipActive,
+                    ]}
+                    onPress={() => setSelectedCategory(cat)}
+                  >
+                    <Text style={styles.categoryChipIcon}>{cat.icon}</Text>
+                    <Text style={[
+                      styles.categoryChipText,
+                      selectedCategory?.id === cat.id && styles.categoryChipTextActive,
+                    ]}>
+                      {cat.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.modalSaveBtn} onPress={handleSubmitExpense}>
+                <Text style={styles.modalSaveBtnText}>ثبت هزینه</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => setExpenseModalVisible(false)}
               >
                 <Text style={styles.modalCancelBtnText}>انصراف</Text>
               </TouchableOpacity>
@@ -821,5 +926,63 @@ const styles = StyleSheet.create({
   modalCancelBtnText: {
     color: COLORS.text,
     fontSize: 16,
+  },
+  addExpenseBtn: {
+    backgroundColor: COLORS.green,
+    marginHorizontal: 14,
+    marginBottom: 12,
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  addExpenseBtnText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  expenseListInfo: {
+    fontSize: 14,
+    color: COLORS.textLight,
+    textAlign: 'center',
+    marginBottom: 16,
+    backgroundColor: COLORS.background,
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  categoryScroll: {
+    maxHeight: 120,
+    marginBottom: 12,
+  },
+  categoryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  categoryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.background,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderWidth: 1.5,
+    borderColor: COLORS.border,
+  },
+  categoryChipActive: {
+    borderColor: COLORS.primary,
+    backgroundColor: '#E8F0FE',
+  },
+  categoryChipIcon: {
+    fontSize: 14,
+    marginLeft: 5,
+  },
+  categoryChipText: {
+    fontSize: 12,
+    color: COLORS.text,
+  },
+  categoryChipTextActive: {
+    color: COLORS.primary,
+    fontWeight: '600',
   },
 });
