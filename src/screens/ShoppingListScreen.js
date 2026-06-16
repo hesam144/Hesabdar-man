@@ -25,6 +25,8 @@ import {
   addTransaction,
   getCategories,
   updateShoppingList,
+  getCustomCatalogItems,
+  addCustomCatalogItem,
 } from '../database/queries';
 import {
   getTodayString,
@@ -62,6 +64,15 @@ export default function ShoppingListScreen() {
   const [newItemQty, setNewItemQty] = useState('');
   const [showCatalog, setShowCatalog] = useState(false);
   const [openCategoryId, setOpenCategoryId] = useState(null);
+  const [mergedCategories, setMergedCategories] = useState(SHOPPING_CATEGORIES);
+
+  const [qtyModalVisible, setQtyModalVisible] = useState(false);
+  const [qtyItemName, setQtyItemName] = useState('');
+  const [qtyValue, setQtyValue] = useState('1');
+
+  const [addCustomModalVisible, setAddCustomModalVisible] = useState(false);
+  const [customItemName, setCustomItemName] = useState('');
+  const [customCategoryId, setCustomCategoryId] = useState(null);
 
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [listName, setListName] = useState('');
@@ -98,10 +109,25 @@ export default function ShoppingListScreen() {
     setLists(data);
   }, [db]);
 
+  const loadMergedCategories = useCallback(async () => {
+    const customItems = await getCustomCatalogItems(db);
+    const merged = SHOPPING_CATEGORIES.map((cat) => {
+      const extras = customItems
+        .filter((ci) => ci.category_id === cat.id)
+        .map((ci) => ci.name)
+        .filter((name) => !cat.items.includes(name));
+      return extras.length > 0
+        ? { ...cat, items: [...cat.items, ...extras] }
+        : cat;
+    });
+    setMergedCategories(merged);
+  }, [db]);
+
   useFocusEffect(
     useCallback(() => {
       loadLists();
-    }, [loadLists])
+      loadMergedCategories();
+    }, [loadLists, loadMergedCategories])
   );
 
   const loadItems = useCallback(async (listId) => {
@@ -212,6 +238,26 @@ export default function ShoppingListScreen() {
     loadLists();
   };
 
+  const handleCatalogItemPress = (itemName) => {
+    setQtyItemName(itemName);
+    setQtyValue('1');
+    setQtyModalVisible(true);
+  };
+
+  const handleConfirmCatalogItem = async () => {
+    if (!expandedId || !qtyItemName) return;
+    await addShoppingItem(db, {
+      listId: expandedId,
+      name: qtyItemName,
+      quantity: qtyValue.trim() || '1',
+    });
+    setQtyModalVisible(false);
+    setQtyItemName('');
+    setQtyValue('1');
+    await loadItems(expandedId);
+    loadLists();
+  };
+
   const handleAddItem = async () => {
     if (!newItemName.trim() || !expandedId) return;
     await addShoppingItem(db, {
@@ -225,15 +271,20 @@ export default function ShoppingListScreen() {
     loadLists();
   };
 
-  const handleAddFromCatalog = async (itemName) => {
-    if (!expandedId) return;
-    await addShoppingItem(db, {
-      listId: expandedId,
-      name: itemName,
-      quantity: '',
-    });
-    await loadItems(expandedId);
-    loadLists();
+  const handleOpenAddCustom = () => {
+    setCustomItemName('');
+    setCustomCategoryId(null);
+    setAddCustomModalVisible(true);
+  };
+
+  const handleSaveCustomItem = async () => {
+    if (!customItemName.trim() || !customCategoryId) {
+      Alert.alert('خطا', 'نام آیتم و دسته‌بندی را انتخاب کنید');
+      return;
+    }
+    await addCustomCatalogItem(db, customCategoryId, customItemName.trim());
+    setAddCustomModalVisible(false);
+    await loadMergedCategories();
   };
 
   const toggleCatalogCategory = (catId) => {
@@ -280,7 +331,28 @@ export default function ShoppingListScreen() {
       type: 'expense',
     });
     setExpenseModalVisible(false);
-    Alert.alert('موفق', `هزینه "${expenseListName}" ثبت شد`);
+    const currentListId = expenseListId;
+    Alert.alert(
+      'هزینه ثبت شد',
+      `هزینه "${expenseListName}" ثبت شد. میخوای لیست خرید رو هم حذف کنی؟`,
+      [
+        { text: 'نه، نگهش دار', style: 'cancel' },
+        {
+          text: 'بله، حذفش کن',
+          style: 'destructive',
+          onPress: async () => {
+            const list = lists.find((l) => l.id === currentListId);
+            if (list) await cancelListNotifications(list);
+            await deleteShoppingList(db, currentListId);
+            if (expandedId === currentListId) {
+              setExpandedId(null);
+              setExpandedItems([]);
+            }
+            loadLists();
+          },
+        },
+      ]
+    );
   };
 
   const handleOpenEdit = (list) => {
@@ -569,7 +641,7 @@ export default function ShoppingListScreen() {
                   {/* Catalog accordion */}
                   {showCatalog && (
                     <View style={styles.catalogContainer}>
-                      {SHOPPING_CATEGORIES.map((cat) => {
+                      {mergedCategories.map((cat) => {
                         const isOpen = openCategoryId === cat.id;
                         const existingNames = expandedItems.map((i) => i.name);
                         return (
@@ -590,7 +662,7 @@ export default function ShoppingListScreen() {
                                     <TouchableOpacity
                                       key={itemName}
                                       style={[styles.catalogItem, alreadyAdded && styles.catalogItemAdded]}
-                                      onPress={() => !alreadyAdded && handleAddFromCatalog(itemName)}
+                                      onPress={() => !alreadyAdded && handleCatalogItemPress(itemName)}
                                       disabled={alreadyAdded}
                                     >
                                       <Text style={[styles.catalogItemText, alreadyAdded && styles.catalogItemTextAdded]}>
@@ -604,6 +676,12 @@ export default function ShoppingListScreen() {
                           </View>
                         );
                       })}
+                      <TouchableOpacity
+                        style={styles.addCustomCatalogBtn}
+                        onPress={handleOpenAddCustom}
+                      >
+                        <Text style={styles.addCustomCatalogBtnText}>+ افزودن آیتم جدید به دسته‌بندی</Text>
+                      </TouchableOpacity>
                     </View>
                   )}
                 </View>
@@ -774,6 +852,81 @@ export default function ShoppingListScreen() {
               <TouchableOpacity
                 style={styles.modalCancelBtn}
                 onPress={() => setEditModalVisible(false)}
+              >
+                <Text style={styles.modalCancelBtnText}>انصراف</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Quantity Prompt Modal */}
+      <Modal visible={qtyModalVisible} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>تعداد «{qtyItemName}»</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="تعداد (مثلاً ۲)"
+              value={qtyValue}
+              onChangeText={setQtyValue}
+              keyboardType="default"
+              placeholderTextColor={COLORS.textLight}
+              autoFocus
+            />
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.modalSaveBtn} onPress={handleConfirmCatalogItem}>
+                <Text style={styles.modalSaveBtnText}>افزودن</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => setQtyModalVisible(false)}
+              >
+                <Text style={styles.modalCancelBtnText}>انصراف</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Add Custom Catalog Item Modal */}
+      <Modal visible={addCustomModalVisible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>افزودن آیتم جدید به دسته‌بندی</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="نام آیتم"
+              value={customItemName}
+              onChangeText={setCustomItemName}
+              placeholderTextColor={COLORS.textLight}
+            />
+            <Text style={[styles.label, { marginTop: 12, marginBottom: 8 }]}>انتخاب دسته‌بندی:</Text>
+            <ScrollView style={{ maxHeight: 200 }} nestedScrollEnabled>
+              {SHOPPING_CATEGORIES.map((cat) => (
+                <TouchableOpacity
+                  key={cat.id}
+                  style={[
+                    styles.customCatOption,
+                    customCategoryId === cat.id && styles.customCatOptionActive,
+                  ]}
+                  onPress={() => setCustomCategoryId(cat.id)}
+                >
+                  <Text style={styles.customCatOptionIcon}>{cat.icon}</Text>
+                  <Text style={[
+                    styles.customCatOptionText,
+                    customCategoryId === cat.id && styles.customCatOptionTextActive,
+                  ]}>{cat.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.modalSaveBtn} onPress={handleSaveCustomItem}>
+                <Text style={styles.modalSaveBtnText}>ذخیره</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => setAddCustomModalVisible(false)}
               >
                 <Text style={styles.modalCancelBtnText}>انصراف</Text>
               </TouchableOpacity>
@@ -1304,5 +1457,50 @@ const styles = StyleSheet.create({
   },
   catalogItemTextAdded: {
     color: COLORS.green,
+  },
+  addCustomCatalogBtn: {
+    marginTop: 10,
+    paddingVertical: 10,
+    backgroundColor: COLORS.primary,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  addCustomCatalogBtnText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  customCatOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginBottom: 4,
+    backgroundColor: COLORS.card,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  customCatOptionActive: {
+    borderColor: COLORS.primary,
+    backgroundColor: '#E3F2FD',
+  },
+  customCatOptionIcon: {
+    fontSize: 18,
+    marginLeft: 8,
+  },
+  customCatOptionText: {
+    fontSize: 14,
+    color: COLORS.text,
+  },
+  customCatOptionTextActive: {
+    color: COLORS.primary,
+    fontWeight: '600',
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.text,
+    textAlign: 'right',
   },
 });

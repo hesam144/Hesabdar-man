@@ -69,6 +69,13 @@ export async function migrateDbIfNeeded(db) {
       is_checked INTEGER NOT NULL DEFAULT 0,
       FOREIGN KEY (list_id) REFERENCES shopping_lists(id) ON DELETE CASCADE
     );
+
+    CREATE TABLE IF NOT EXISTS custom_catalog_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      category_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      UNIQUE(category_id, name)
+    );
   `);
 
   try {

@@ -293,3 +293,17 @@ export async function toggleShoppingItem(db, id, isChecked) {
 export async function deleteShoppingItem(db, id) {
   return db.runAsync('DELETE FROM shopping_items WHERE id = ?', id);
 }
+
+// --- Custom Catalog Items ---
+
+export async function getCustomCatalogItems(db) {
+  return db.getAllAsync('SELECT * FROM custom_catalog_items ORDER BY category_id, name');
+}
+
+export async function addCustomCatalogItem(db, categoryId, name) {
+  return db.runAsync(
+    'INSERT OR IGNORE INTO custom_catalog_items (category_id, name) VALUES (?, ?)',
+    categoryId,
+    name
+  );
+}
