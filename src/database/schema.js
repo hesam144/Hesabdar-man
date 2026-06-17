@@ -56,7 +56,9 @@ export async function migrateDbIfNeeded(db) {
       date TEXT NOT NULL,
       notify_date TEXT,
       notification_id TEXT,
+      notification_id_next TEXT,
       is_completed INTEGER NOT NULL DEFAULT 0,
+      is_purchased INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
@@ -68,7 +70,33 @@ export async function migrateDbIfNeeded(db) {
       is_checked INTEGER NOT NULL DEFAULT 0,
       FOREIGN KEY (list_id) REFERENCES shopping_lists(id) ON DELETE CASCADE
     );
+
+    CREATE TABLE IF NOT EXISTS custom_catalog_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      category_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      UNIQUE(category_id, name)
+    );
+
+    CREATE TABLE IF NOT EXISTS custom_shopping_categories (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      icon TEXT NOT NULL DEFAULT '📦',
+      UNIQUE(name)
+    );
   `);
+
+  try {
+    await db.runAsync('ALTER TABLE shopping_lists ADD COLUMN notification_id_next TEXT');
+  } catch (e) {
+    // column already exists
+  }
+
+  try {
+    await db.runAsync('ALTER TABLE shopping_lists ADD COLUMN is_purchased INTEGER NOT NULL DEFAULT 0');
+  } catch (e) {
+    // column already exists
+  }
 
   const existing = await db.getFirstAsync('SELECT COUNT(*) as count FROM categories');
   if (existing.count === 0) {

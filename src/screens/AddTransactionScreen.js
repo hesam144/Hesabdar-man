@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,34 +7,29 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
-  KeyboardAvoidingView,
-  Platform,
   Modal,
 } from 'react-native';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useFocusEffect } from '@react-navigation/native';
 import { addTransaction, getCategories, addCategory } from '../database/queries';
-import { getTodayString } from '../utils/date';
+import {
+  getTodayJalali,
+  getYearOptions,
+  getMonthOptions,
+  getDayOptions,
+  getMonthName,
+} from '../utils/date';
 import { COLORS } from '../utils/colors';
 
 const ICON_OPTIONS = [
-  // Food & Drink
   '🍞', '🍕', '🍔', '🍎', '🥛', '☕', '🍰', '🥗',
-  // Shopping & Money
   '🛍️', '🛒', '💰', '💵', '💳', '🏦', '💎', '🎁',
-  // Transport
   '🚗', '🚌', '🚕', '🏍️', '✈️', '🚇', '⛽', '🚲',
-  // Home & Living
   '🏠', '🏡', '🛋️', '🔑', '🧹', '🪴', '💡', '🚿',
-  // Health & Beauty
   '🏥', '💊', '🧴', '💅', '🏋️', '🧘', '🩺', '😷',
-  // Education & Work
   '📚', '🎓', '💻', '📱', '🖥️', '📝', '🖊️', '📐',
-  // Entertainment
   '🎬', '🎮', '🎵', '🎭', '📷', '🎨', '⚽', '🎯',
-  // People & Pets
   '👶', '👨‍👩‍👧', '🐱', '🐶', '🧸', '👕', '👗', '👟',
-  // Other
   '📌', '🔧', '📦', '🗓️', '🏢', '⭐', '❤️', '🌍',
 ];
 
@@ -43,13 +38,24 @@ export default function AddTransactionScreen({ navigation }) {
   const [type, setType] = useState('expense');
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
-  const [date, setDate] = useState(getTodayString());
+
+  const todayJ = getTodayJalali();
+  const [selYear, setSelYear] = useState(todayJ.jy);
+  const [selMonth, setSelMonth] = useState(todayJ.jm);
+  const [selDay, setSelDay] = useState(todayJ.jd);
+
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [categories, setCategories] = useState([]);
 
   const [catModalVisible, setCatModalVisible] = useState(false);
   const [newCatName, setNewCatName] = useState('');
   const [newCatIcon, setNewCatIcon] = useState('📌');
+
+  const yearOptions = useMemo(() => getYearOptions(), []);
+  const monthOptions = useMemo(() => getMonthOptions(), []);
+  const dayOptions = useMemo(() => getDayOptions(selYear, selMonth), [selYear, selMonth]);
+
+  const dateString = `${selYear}/${String(selMonth).padStart(2, '0')}/${String(selDay).padStart(2, '0')}`;
 
   const loadCategories = useCallback(async () => {
     const cats = await getCategories(db, type);
@@ -89,7 +95,7 @@ export default function AddTransactionScreen({ navigation }) {
       amount: parseFloat(amount),
       categoryId: selectedCategory.id,
       description,
-      date,
+      date: dateString,
       type,
     });
 
@@ -97,127 +103,172 @@ export default function AddTransactionScreen({ navigation }) {
     setAmount('');
     setDescription('');
     setSelectedCategory(null);
+    const today = getTodayJalali();
+    setSelYear(today.jy);
+    setSelMonth(today.jm);
+    setSelDay(today.jd);
     navigation.navigate('داشبورد');
   };
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <ScrollView style={styles.container}>
-        {/* Type Toggle */}
-        <View style={styles.toggleRow}>
-          <TouchableOpacity
-            style={[styles.toggleBtn, type === 'expense' && styles.toggleActive]}
-            onPress={() => setType('expense')}
-          >
-            <Text style={[styles.toggleText, type === 'expense' && styles.toggleTextActive]}>
-              هزینه
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.toggleBtn, type === 'income' && styles.toggleActiveGreen]}
-            onPress={() => setType('income')}
-          >
-            <Text style={[styles.toggleText, type === 'income' && styles.toggleTextActive]}>
-              درآمد
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Amount */}
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>مبلغ (تومان)</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="مثلاً ۵۰۰۰۰"
-            keyboardType="numeric"
-            value={amount}
-            onChangeText={setAmount}
-            placeholderTextColor={COLORS.textLight}
-          />
-        </View>
-
-        {/* Date (Shamsi) */}
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>تاریخ (شمسی)</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="۱۴۰۴/۰۳/۲۵"
-            value={date}
-            onChangeText={setDate}
-            placeholderTextColor={COLORS.textLight}
-          />
-        </View>
-
-        {/* Description */}
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>توضیحات (اختیاری)</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="توضیح کوتاه..."
-            value={description}
-            onChangeText={setDescription}
-            placeholderTextColor={COLORS.textLight}
-          />
-        </View>
-
-        {/* Category picker */}
-        <View style={styles.inputGroup}>
-          <View style={styles.categoryHeader}>
-            <Text style={styles.label}>دسته‌بندی</Text>
-            <TouchableOpacity
-              style={styles.addCatBtn}
-              onPress={() => setCatModalVisible(true)}
-            >
-              <Text style={styles.addCatBtnText}>+ جدید</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={styles.categoryGrid}>
-            {categories.map((cat) => (
-              <TouchableOpacity
-                key={cat.id}
-                style={[
-                  styles.categoryChip,
-                  selectedCategory?.id === cat.id && styles.categoryChipActive,
-                ]}
-                onPress={() => setSelectedCategory(cat)}
-              >
-                <Text style={styles.categoryChipIcon}>{cat.icon}</Text>
-                <Text
-                  style={[
-                    styles.categoryChipText,
-                    selectedCategory?.id === cat.id && styles.categoryChipTextActive,
-                  ]}
-                >
-                  {cat.name}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* Submit */}
+    <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
+      {/* Type Toggle */}
+      <View style={styles.toggleRow}>
         <TouchableOpacity
-          style={[
-            styles.submitBtn,
-            { backgroundColor: type === 'expense' ? COLORS.red : COLORS.green },
-          ]}
-          onPress={handleSubmit}
+          style={[styles.toggleBtn, type === 'expense' && styles.toggleActive]}
+          onPress={() => setType('expense')}
         >
-          <Text style={styles.submitText}>
-            {type === 'expense' ? 'ثبت هزینه' : 'ثبت درآمد'}
+          <Text style={[styles.toggleText, type === 'expense' && styles.toggleTextActive]}>
+            هزینه
           </Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.toggleBtn, type === 'income' && styles.toggleActiveGreen]}
+          onPress={() => setType('income')}
+        >
+          <Text style={[styles.toggleText, type === 'income' && styles.toggleTextActive]}>
+            درآمد
+          </Text>
+        </TouchableOpacity>
+      </View>
 
-        <View style={{ height: 40 }} />
-      </ScrollView>
+      {/* Amount */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>مبلغ (تومان)</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="مثلاً ۵۰۰۰۰"
+          keyboardType="numeric"
+          value={amount}
+          onChangeText={setAmount}
+          placeholderTextColor={COLORS.textLight}
+        />
+      </View>
+
+      {/* Date Picker */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>تاریخ (شمسی)</Text>
+        <View style={styles.datePickerRow}>
+          {/* Year */}
+          <View style={styles.datePickerCol}>
+            <Text style={styles.datePickerLabel}>سال</Text>
+            <ScrollView style={styles.datePickerScroll} nestedScrollEnabled showsVerticalScrollIndicator={false}>
+              {yearOptions.map((y) => (
+                <TouchableOpacity
+                  key={y}
+                  style={[styles.datePickerItem, selYear === y && styles.datePickerItemActive]}
+                  onPress={() => setSelYear(y)}
+                >
+                  <Text style={[styles.datePickerItemText, selYear === y && styles.datePickerItemTextActive]}>{y}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+          {/* Month */}
+          <View style={[styles.datePickerCol, { flex: 1.5 }]}>
+            <Text style={styles.datePickerLabel}>ماه</Text>
+            <ScrollView style={styles.datePickerScroll} nestedScrollEnabled showsVerticalScrollIndicator={false}>
+              {monthOptions.map((m) => (
+                <TouchableOpacity
+                  key={m.value}
+                  style={[styles.datePickerItem, selMonth === m.value && styles.datePickerItemActive]}
+                  onPress={() => {
+                    setSelMonth(m.value);
+                    const maxDay = getDayOptions(selYear, m.value).length;
+                    if (selDay > maxDay) setSelDay(maxDay);
+                  }}
+                >
+                  <Text style={[styles.datePickerItemText, selMonth === m.value && styles.datePickerItemTextActive]}>{m.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+          {/* Day */}
+          <View style={styles.datePickerCol}>
+            <Text style={styles.datePickerLabel}>روز</Text>
+            <ScrollView style={styles.datePickerScroll} nestedScrollEnabled showsVerticalScrollIndicator={false}>
+              {dayOptions.map((d) => (
+                <TouchableOpacity
+                  key={d}
+                  style={[styles.datePickerItem, selDay === d && styles.datePickerItemActive]}
+                  onPress={() => setSelDay(d)}
+                >
+                  <Text style={[styles.datePickerItemText, selDay === d && styles.datePickerItemTextActive]}>{d}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+        <Text style={styles.datePreview}>{dateString}</Text>
+      </View>
+
+      {/* Description */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>توضیحات (اختیاری)</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="توضیح کوتاه..."
+          value={description}
+          onChangeText={setDescription}
+          placeholderTextColor={COLORS.textLight}
+        />
+      </View>
+
+      {/* Category picker */}
+      <View style={styles.inputGroup}>
+        <View style={styles.categoryHeader}>
+          <Text style={styles.label}>دسته‌بندی</Text>
+          <TouchableOpacity
+            style={styles.addCatBtn}
+            onPress={() => setCatModalVisible(true)}
+          >
+            <Text style={styles.addCatBtnText}>+ جدید</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.categoryGrid}>
+          {categories.map((cat) => (
+            <TouchableOpacity
+              key={cat.id}
+              style={[
+                styles.categoryChip,
+                selectedCategory?.id === cat.id && styles.categoryChipActive,
+              ]}
+              onPress={() => setSelectedCategory(cat)}
+            >
+              <Text style={styles.categoryChipIcon}>{cat.icon}</Text>
+              <Text
+                style={[
+                  styles.categoryChipText,
+                  selectedCategory?.id === cat.id && styles.categoryChipTextActive,
+                ]}
+              >
+                {cat.name}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      {/* Submit */}
+      <TouchableOpacity
+        style={[
+          styles.submitBtn,
+          { backgroundColor: type === 'expense' ? COLORS.red : COLORS.green },
+        ]}
+        onPress={handleSubmit}
+      >
+        <Text style={styles.submitText}>
+          {type === 'expense' ? 'ثبت هزینه' : 'ثبت درآمد'}
+        </Text>
+      </TouchableOpacity>
+
+      <View style={{ height: 40 }} />
 
       {/* Add Category Modal */}
-      <Modal visible={catModalVisible} transparent animationType="slide">
+      <Modal visible={catModalVisible} transparent animationType="slide" onRequestClose={() => setCatModalVisible(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
+            <View style={styles.modalHandle} />
             <Text style={styles.modalTitle}>دسته‌بندی جدید</Text>
 
             <TextInput
@@ -260,7 +311,7 @@ export default function AddTransactionScreen({ navigation }) {
           </View>
         </View>
       </Modal>
-    </KeyboardAvoidingView>
+    </ScrollView>
   );
 }
 
@@ -278,8 +329,8 @@ const styles = StyleSheet.create({
   },
   toggleBtn: {
     flex: 1,
-    paddingVertical: 12,
-    borderRadius: 10,
+    paddingVertical: 14,
+    borderRadius: 14,
     backgroundColor: COLORS.card,
     alignItems: 'center',
     borderWidth: 2,
@@ -313,14 +364,60 @@ const styles = StyleSheet.create({
   },
   input: {
     backgroundColor: COLORS.card,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     fontSize: 16,
     color: COLORS.text,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: COLORS.border,
     textAlign: 'right',
+  },
+  datePickerRow: {
+    flexDirection: 'row',
+    gap: 8,
+    backgroundColor: COLORS.card,
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1.5,
+    borderColor: COLORS.border,
+  },
+  datePickerCol: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  datePickerLabel: {
+    fontSize: 12,
+    color: COLORS.textLight,
+    marginBottom: 6,
+    fontWeight: '600',
+  },
+  datePickerScroll: {
+    maxHeight: 120,
+  },
+  datePickerItem: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginBottom: 2,
+    alignItems: 'center',
+  },
+  datePickerItemActive: {
+    backgroundColor: COLORS.primary,
+  },
+  datePickerItemText: {
+    fontSize: 14,
+    color: COLORS.text,
+  },
+  datePickerItemTextActive: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  datePreview: {
+    fontSize: 13,
+    color: COLORS.textLight,
+    textAlign: 'center',
+    marginTop: 8,
   },
   categoryHeader: {
     flexDirection: 'row',
@@ -350,20 +447,20 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.card,
     borderRadius: 20,
     paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderWidth: 1.5,
     borderColor: COLORS.border,
   },
   categoryChipActive: {
     borderColor: COLORS.primary,
-    backgroundColor: '#E8F0FE',
+    backgroundColor: COLORS.primaryLight,
   },
   categoryChipIcon: {
-    fontSize: 16,
+    fontSize: 18,
     marginLeft: 6,
   },
   categoryChipText: {
-    fontSize: 13,
+    fontSize: 14,
     color: COLORS.text,
   },
   categoryChipTextActive: {
@@ -371,32 +468,44 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   submitBtn: {
-    borderRadius: 12,
-    paddingVertical: 16,
+    borderRadius: 16,
+    paddingVertical: 18,
     alignItems: 'center',
     marginTop: 8,
-    elevation: 2,
+    elevation: 3,
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
   },
   submitText: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#fff',
   },
-  // Modal styles
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'flex-end',
   },
   modalContent: {
     backgroundColor: COLORS.card,
-    borderRadius: 16,
-    padding: 20,
-    width: '85%',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    paddingBottom: 32,
+    maxHeight: '85%',
+  },
+  modalHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#D0D5DD',
+    alignSelf: 'center',
+    marginBottom: 16,
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
     color: COLORS.text,
     textAlign: 'center',
@@ -404,12 +513,12 @@ const styles = StyleSheet.create({
   },
   modalInput: {
     backgroundColor: COLORS.background,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     fontSize: 16,
     color: COLORS.text,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: COLORS.border,
     textAlign: 'right',
     marginBottom: 16,
@@ -431,9 +540,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   iconOption: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
+    width: 46,
+    height: 46,
+    borderRadius: 12,
     backgroundColor: COLORS.background,
     justifyContent: 'center',
     alignItems: 'center',
@@ -442,7 +551,7 @@ const styles = StyleSheet.create({
   },
   iconOptionActive: {
     borderColor: COLORS.primary,
-    backgroundColor: '#E8F0FE',
+    backgroundColor: COLORS.primaryLight,
   },
   iconText: {
     fontSize: 22,
@@ -454,22 +563,23 @@ const styles = StyleSheet.create({
   modalSaveBtn: {
     flex: 1,
     backgroundColor: COLORS.primary,
-    borderRadius: 10,
-    paddingVertical: 12,
+    borderRadius: 14,
+    paddingVertical: 16,
     alignItems: 'center',
+    elevation: 2,
   },
   modalSaveBtnText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: 'bold',
   },
   modalCancelBtn: {
     flex: 1,
     backgroundColor: COLORS.background,
-    borderRadius: 10,
-    paddingVertical: 12,
+    borderRadius: 14,
+    paddingVertical: 16,
     alignItems: 'center',
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: COLORS.border,
   },
   modalCancelBtnText: {

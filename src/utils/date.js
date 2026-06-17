@@ -7,6 +7,10 @@ const PERSIAN_MONTHS = [
   'دی', 'بهمن', 'اسفند',
 ];
 
+const PERSIAN_WEEKDAYS = [
+  'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه', 'شنبه',
+];
+
 export function getTodayJalali() {
   const d = new Date();
   return jalaali.toJalaali(d.getFullYear(), d.getMonth() + 1, d.getDate());
@@ -25,12 +29,24 @@ export function getTodayGregorian() {
   return `${y}-${m}-${day}`;
 }
 
+export function getTodayFullString() {
+  const d = new Date();
+  const j = getTodayJalali();
+  const weekday = PERSIAN_WEEKDAYS[d.getDay()];
+  return `${weekday} ${j.jd} ${PERSIAN_MONTHS[j.jm - 1]} ${j.jy}`;
+}
+
 export function jalaliToGregorian(jalaliStr) {
+  if (!jalaliStr) return null;
   const parts = jalaliStr.split(/[\/\-]/).map(Number);
   if (parts.length !== 3 || parts.some(isNaN)) return null;
   const [jy, jm, jd] = parts;
-  const g = jalaali.toGregorian(jy, jm, jd);
-  return `${g.gy}-${String(g.gm).padStart(2, '0')}-${String(g.gd).padStart(2, '0')}`;
+  try {
+    const g = jalaali.toGregorian(jy, jm, jd);
+    return `${g.gy}-${String(g.gm).padStart(2, '0')}-${String(g.gd).padStart(2, '0')}`;
+  } catch (e) {
+    return null;
+  }
 }
 
 export function gregorianToJalali(gStr) {
@@ -38,8 +54,12 @@ export function gregorianToJalali(gStr) {
   const parts = gStr.split('-').map(Number);
   if (parts.length !== 3 || parts.some(isNaN)) return gStr;
   const [gy, gm, gd] = parts;
-  const j = jalaali.toJalaali(gy, gm, gd);
-  return `${j.jy}/${String(j.jm).padStart(2, '0')}/${String(j.jd).padStart(2, '0')}`;
+  try {
+    const j = jalaali.toJalaali(gy, gm, gd);
+    return `${j.jy}/${String(j.jm).padStart(2, '0')}/${String(j.jd).padStart(2, '0')}`;
+  } catch (e) {
+    return gStr;
+  }
 }
 
 export function getCurrentMonth() {
@@ -91,4 +111,26 @@ export function jalaliToDate(jalaliStr) {
 
 export function getJalaliMonthLength(jYear, jMonth) {
   return jalaali.jalaaliMonthLength(jYear, jMonth);
+}
+
+export function getYearOptions() {
+  const j = getTodayJalali();
+  const years = [];
+  for (let y = j.jy - 2; y <= j.jy + 1; y++) {
+    years.push(y);
+  }
+  return years;
+}
+
+export function getMonthOptions() {
+  return PERSIAN_MONTHS.map((name, i) => ({ value: i + 1, label: name }));
+}
+
+export function getDayOptions(jYear, jMonth) {
+  const len = jalaali.jalaaliMonthLength(jYear, jMonth);
+  const days = [];
+  for (let d = 1; d <= len; d++) {
+    days.push(d);
+  }
+  return days;
 }

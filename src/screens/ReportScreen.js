@@ -1,12 +1,15 @@
-import { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Dimensions, TouchableOpacity } from 'react-native';
+import { useCallback, useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, Dimensions, TouchableOpacity, Animated, Alert } from 'react-native';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useFocusEffect } from '@react-navigation/native';
 import { PieChart, BarChart } from 'react-native-chart-kit';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import {
   getMonthlySummary,
   getExpensesByCategory,
   getDailyExpensesForMonth,
+  getTransactionsByMonth,
 } from '../database/queries';
 import {
   getCurrentMonth,
@@ -21,8 +24,6 @@ import { COLORS, CHART_COLORS } from '../utils/colors';
 
 const screenWidth = Dimensions.get('window').width - 32;
 
-
-
 export default function ReportScreen() {
   const db = useSQLiteContext();
   const [year, setYear] = useState(() => getCurrentMonth().year);
@@ -30,6 +31,7 @@ export default function ReportScreen() {
   const [summary, setSummary] = useState({ totalExpenses: 0, totalIncome: 0, balance: 0 });
   const [categoryData, setCategoryData] = useState([]);
   const [dailyData, setDailyData] = useState([]);
+  const animValue = useRef(new Animated.Value(0)).current;
 
   const loadData = useCallback(async () => {
     const [s, cats, daily] = await Promise.all([
@@ -40,6 +42,13 @@ export default function ReportScreen() {
     setSummary(s);
     setCategoryData(cats);
     setDailyData(daily);
+
+    animValue.setValue(0);
+    Animated.timing(animValue, {
+      toValue: 1,
+      duration: 800,
+      useNativeDriver: true,
+    }).start();
   }, [db, year, month]);
 
   useFocusEffect(
@@ -60,13 +69,54 @@ export default function ReportScreen() {
     setMonth(n.month);
   };
 
-  const pieData = categoryData.map((cat, i) => ({
-    name: cat.name,
-    amount: cat.total,
-    color: CHART_COLORS[i % CHART_COLORS.length],
-    legendFontColor: COLORS.text,
-    legendFontSize: 12,
-  }));
+  const handleExportCSV = async () => {
+    try {
+      const txns = await getTransactionsByMonth(db, year, month);
+      if (txns.length === 0) {
+        Alert.alert('خالی', 'تراکنشی برای این ماه ثبت نشده');
+        return;
+      }
+
+      const header = 'تاریخ,نوع,دسته‌بندی,توضیحات,مبلغ\n';
+      const rows = txns.map((tx) => {
+        const date = gregorianToJalali(tx.date);
+        const type = tx.type === 'expense' ? 'هزینه' : 'درآمد';
+        const desc = (tx.description || '').replace(/,/g, '،');
+        return `${date},${type},${tx.category_name},${desc},${tx.amount}`;
+      }).join('\n');
+
+      const csv = '\uFEFF' + header + rows;
+      const monthName = getMonthName(month);
+      const fileName = `گزارش_${monthName}_${year}.csv`;
+      const filePath = FileSystem.documentDirectory + fileName;
+
+      await FileSystem.writeAsStringAsync(filePath, csv, { encoding: FileSystem.EncodingType.UTF8 });
+
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare) {
+        await Sharing.shareAsync(filePath, {
+          mimeType: 'text/csv',
+          dialogTitle: `خروجی گزارش ${monthName} ${year}`,
+        });
+      } else {
+        Alert.alert('موفق', 'فایل ذخیره شد');
+      }
+    } catch (e) {
+      console.log('CSV export error:', e);
+      Alert.alert('خطا', 'مشکلی در خروجی گرفتن پیش آمد');
+    }
+  };
+
+  const pieData = categoryData.map((cat, i) => {
+    const pct = summary.totalExpenses > 0 ? Math.round((cat.total / summary.totalExpenses) * 100) : 0;
+    return {
+      name: `${cat.name} ${pct}٪`,
+      amount: cat.total,
+      color: CHART_COLORS[i % CHART_COLORS.length],
+      legendFontColor: COLORS.text,
+      legendFontSize: 11,
+    };
+  });
 
   const barLabels = dailyData.map((d) => {
     const jDate = gregorianToJalali(d.date);
@@ -91,26 +141,17 @@ export default function ReportScreen() {
 
       {/* Summary */}
       <View style={styles.summaryRow}>
-        <View style={styles.summaryItem}>
+        <View style={[styles.summaryItem, { borderTopColor: COLORS.green, borderTopWidth: 3 }]}>
           <Text style={styles.summaryLabel}>درآمد</Text>
-          <Text style={[styles.summaryVal, { color: COLORS.green }]}>
-            {formatCurrency(summary.totalIncome)}
-          </Text>
+          <Text style={[styles.summaryVal, { color: COLORS.green }]}>{formatCurrency(summary.totalIncome)}</Text>
         </View>
-        <View style={styles.summaryItem}>
+        <View style={[styles.summaryItem, { borderTopColor: COLORS.red, borderTopWidth: 3 }]}>
           <Text style={styles.summaryLabel}>هزینه</Text>
-          <Text style={[styles.summaryVal, { color: COLORS.red }]}>
-            {formatCurrency(summary.totalExpenses)}
-          </Text>
+          <Text style={[styles.summaryVal, { color: COLORS.red }]}>{formatCurrency(summary.totalExpenses)}</Text>
         </View>
-        <View style={styles.summaryItem}>
+        <View style={[styles.summaryItem, { borderTopColor: COLORS.primary, borderTopWidth: 3 }]}>
           <Text style={styles.summaryLabel}>تراز</Text>
-          <Text
-            style={[
-              styles.summaryVal,
-              { color: summary.balance >= 0 ? COLORS.green : COLORS.red },
-            ]}
-          >
+          <Text style={[styles.summaryVal, { color: summary.balance >= 0 ? COLORS.green : COLORS.red }]}>
             {formatCurrency(summary.balance)}
           </Text>
         </View>
@@ -118,7 +159,7 @@ export default function ReportScreen() {
 
       {/* Pie Chart */}
       {pieData.length > 0 && (
-        <View style={styles.card}>
+        <Animated.View style={[styles.card, { opacity: animValue, transform: [{ scale: animValue.interpolate({ inputRange: [0, 1], outputRange: [0.9, 1] }) }] }]}>
           <Text style={styles.cardTitle}>سهم هر دسته‌بندی</Text>
           <PieChart
             data={pieData}
@@ -129,21 +170,42 @@ export default function ReportScreen() {
             }}
             accessor="amount"
             backgroundColor="transparent"
-            paddingLeft="15"
-            absolute
+            paddingLeft="0"
+            absolute={false}
           />
-        </View>
+        </Animated.View>
+      )}
+
+      {/* Category breakdown list with percentages */}
+      {categoryData.length > 0 && (
+        <Animated.View style={[styles.card, { opacity: animValue }]}>
+          <Text style={styles.cardTitle}>جزئیات هزینه‌ها</Text>
+          {categoryData.map((cat, i) => {
+            const pct = summary.totalExpenses > 0 ? Math.round((cat.total / summary.totalExpenses) * 100) : 0;
+            return (
+              <View key={cat.id} style={styles.catRow}>
+                <View style={[styles.catColor, { backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }]} />
+                <Text style={styles.catIcon}>{cat.icon}</Text>
+                <Text style={styles.catName}>{cat.name}</Text>
+                <View style={styles.catPctBadge}>
+                  <Text style={styles.catPct}>{pct}٪</Text>
+                </View>
+                <Text style={styles.catAmount}>{formatCurrency(cat.total)}</Text>
+              </View>
+            );
+          })}
+        </Animated.View>
       )}
 
       {/* Bar Chart - daily expenses */}
       {barLabels.length > 0 && (
-        <View style={styles.card}>
+        <Animated.View style={[styles.card, { opacity: animValue }]}>
           <Text style={styles.cardTitle}>هزینه روزانه</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <BarChart
               data={{
                 labels: barLabels,
-                datasets: [{ data: barValues }],
+                datasets: [{ data: barValues.length > 0 ? barValues : [0] }],
               }}
               width={Math.max(screenWidth, barLabels.length * 40)}
               height={220}
@@ -160,38 +222,17 @@ export default function ReportScreen() {
               style={{ borderRadius: 12 }}
             />
           </ScrollView>
-        </View>
+        </Animated.View>
       )}
 
-      {/* Category breakdown list */}
-      {categoryData.length > 0 && (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>جزئیات هزینه‌ها</Text>
-          {categoryData.map((cat, i) => {
-            const pct =
-              summary.totalExpenses > 0
-                ? Math.round((cat.total / summary.totalExpenses) * 100)
-                : 0;
-            return (
-              <View key={cat.id} style={styles.catRow}>
-                <View
-                  style={[
-                    styles.catColor,
-                    { backgroundColor: CHART_COLORS[i % CHART_COLORS.length] },
-                  ]}
-                />
-                <Text style={styles.catIcon}>{cat.icon}</Text>
-                <Text style={styles.catName}>{cat.name}</Text>
-                <Text style={styles.catPct}>{pct}٪</Text>
-                <Text style={styles.catAmount}>{formatCurrency(cat.total)}</Text>
-              </View>
-            );
-          })}
-        </View>
-      )}
+      {/* CSV Export */}
+      <TouchableOpacity style={styles.exportBtn} onPress={handleExportCSV}>
+        <Text style={styles.exportBtnText}>📥 خروجی CSV گزارش {getMonthName(month)}</Text>
+      </TouchableOpacity>
 
       {categoryData.length === 0 && dailyData.length === 0 && (
         <View style={styles.emptyCard}>
+          <Text style={styles.emptyIcon}>📊</Text>
           <Text style={styles.emptyText}>هنوز تراکنشی ثبت نشده</Text>
         </View>
       )}
@@ -202,110 +243,27 @@ export default function ReportScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-    paddingHorizontal: 16,
-  },
-  monthNav: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 16,
-  },
-  navBtn: {
-    padding: 10,
-  },
-  navBtnText: {
-    fontSize: 20,
-    color: COLORS.primary,
-    fontWeight: 'bold',
-  },
-  monthTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: COLORS.text,
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 16,
-  },
-  summaryItem: {
-    flex: 1,
-    backgroundColor: COLORS.card,
-    borderRadius: 10,
-    padding: 12,
-    alignItems: 'center',
-  },
-  summaryLabel: {
-    fontSize: 12,
-    color: COLORS.textLight,
-    marginBottom: 4,
-  },
-  summaryVal: {
-    fontSize: 13,
-    fontWeight: 'bold',
-  },
-  card: {
-    backgroundColor: COLORS.card,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    elevation: 2,
-    shadowColor: COLORS.shadow,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: COLORS.text,
-    marginBottom: 12,
-    textAlign: 'right',
-  },
-  catRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  catColor: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginLeft: 8,
-  },
-  catIcon: {
-    fontSize: 16,
-    marginLeft: 8,
-  },
-  catName: {
-    flex: 1,
-    fontSize: 14,
-    color: COLORS.text,
-  },
-  catPct: {
-    fontSize: 13,
-    color: COLORS.textLight,
-    marginLeft: 8,
-  },
-  catAmount: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: COLORS.red,
-  },
-  emptyCard: {
-    backgroundColor: COLORS.card,
-    borderRadius: 12,
-    padding: 40,
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: COLORS.textLight,
-  },
+  container: { flex: 1, backgroundColor: COLORS.background, paddingHorizontal: 16 },
+  monthNav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 16 },
+  navBtn: { backgroundColor: COLORS.card, width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', elevation: 2 },
+  navBtnText: { fontSize: 20, color: COLORS.primary, fontWeight: 'bold' },
+  monthTitle: { fontSize: 20, fontWeight: 'bold', color: COLORS.text },
+  summaryRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
+  summaryItem: { flex: 1, backgroundColor: COLORS.card, borderRadius: 14, padding: 14, alignItems: 'center', elevation: 2 },
+  summaryLabel: { fontSize: 12, color: COLORS.textLight, marginBottom: 6 },
+  summaryVal: { fontSize: 12, fontWeight: 'bold' },
+  card: { backgroundColor: COLORS.card, borderRadius: 18, padding: 18, marginBottom: 16, elevation: 2, shadowColor: COLORS.shadow, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 4 },
+  cardTitle: { fontSize: 17, fontWeight: 'bold', color: COLORS.text, marginBottom: 14, textAlign: 'right' },
+  catRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  catColor: { width: 12, height: 12, borderRadius: 6, marginLeft: 8 },
+  catIcon: { fontSize: 18, marginLeft: 8 },
+  catName: { flex: 1, fontSize: 14, color: COLORS.text, fontWeight: '500' },
+  catPctBadge: { backgroundColor: COLORS.primaryLight, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2, marginLeft: 8 },
+  catPct: { fontSize: 12, color: COLORS.primary, fontWeight: '700' },
+  catAmount: { fontSize: 13, fontWeight: '600', color: COLORS.red },
+  exportBtn: { backgroundColor: COLORS.primary, borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginBottom: 16, elevation: 2, shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4 },
+  exportBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  emptyCard: { backgroundColor: COLORS.card, borderRadius: 18, padding: 40, alignItems: 'center', marginTop: 20 },
+  emptyIcon: { fontSize: 48, marginBottom: 12 },
+  emptyText: { fontSize: 16, color: COLORS.textLight },
 });

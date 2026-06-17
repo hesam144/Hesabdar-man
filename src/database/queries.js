@@ -14,8 +14,30 @@ export async function addTransaction(db, { amount, categoryId, description, date
   );
 }
 
+export async function updateTransaction(db, id, { amount, categoryId, description, date, type }) {
+  const gDate = jalaliToGregorian(date) || date;
+  return db.runAsync(
+    'UPDATE transactions SET amount = ?, category_id = ?, description = ?, date = ?, type = ? WHERE id = ?',
+    amount,
+    categoryId,
+    description || '',
+    gDate,
+    type,
+    id
+  );
+}
+
 export async function deleteTransaction(db, id) {
   return db.runAsync('DELETE FROM transactions WHERE id = ?', id);
+}
+
+export async function hasTransactionsForDate(db, jalaliDate) {
+  const gDate = jalaliToGregorian(jalaliDate) || jalaliDate;
+  const result = await db.getFirstAsync(
+    'SELECT COUNT(*) as count FROM transactions WHERE date = ?',
+    gDate
+  );
+  return result.count > 0;
 }
 
 export async function getTransactionsByDate(db, jalaliDate) {
@@ -207,15 +229,16 @@ export async function getSavingsTips(db, jYear, jMonth) {
 
 // --- Shopping Lists ---
 
-export async function createShoppingList(db, { name, date, notifyDate, notificationId }) {
+export async function createShoppingList(db, { name, date, notifyDate, notificationId, notificationIdNext }) {
   const gDate = jalaliToGregorian(date) || date;
   const gNotifyDate = notifyDate ? (jalaliToGregorian(notifyDate) || notifyDate) : null;
   return db.runAsync(
-    'INSERT INTO shopping_lists (name, date, notify_date, notification_id) VALUES (?, ?, ?, ?)',
+    'INSERT INTO shopping_lists (name, date, notify_date, notification_id, notification_id_next) VALUES (?, ?, ?, ?, ?)',
     name,
     gDate,
     gNotifyDate,
-    notificationId || null
+    notificationId || null,
+    notificationIdNext || null
   );
 }
 
@@ -242,12 +265,31 @@ export async function toggleShoppingListComplete(db, id, isCompleted) {
   return db.runAsync('UPDATE shopping_lists SET is_completed = ? WHERE id = ?', isCompleted ? 1 : 0, id);
 }
 
-export async function updateShoppingListNotification(db, id, notifyDate, notificationId) {
+export async function markShoppingListPurchased(db, id) {
+  return db.runAsync('UPDATE shopping_lists SET is_purchased = 1 WHERE id = ?', id);
+}
+
+export async function updateShoppingListNotification(db, id, notifyDate, notificationId, notificationIdNext) {
   const gNotifyDate = notifyDate ? (jalaliToGregorian(notifyDate) || notifyDate) : null;
   return db.runAsync(
-    'UPDATE shopping_lists SET notify_date = ?, notification_id = ? WHERE id = ?',
+    'UPDATE shopping_lists SET notify_date = ?, notification_id = ?, notification_id_next = ? WHERE id = ?',
     gNotifyDate,
     notificationId || null,
+    notificationIdNext || null,
+    id
+  );
+}
+
+export async function updateShoppingList(db, id, { name, date, notifyDate, notificationId, notificationIdNext }) {
+  const gDate = jalaliToGregorian(date) || date;
+  const gNotifyDate = notifyDate ? (jalaliToGregorian(notifyDate) || notifyDate) : null;
+  return db.runAsync(
+    'UPDATE shopping_lists SET name = ?, date = ?, notify_date = ?, notification_id = ?, notification_id_next = ? WHERE id = ?',
+    name,
+    gDate,
+    gNotifyDate,
+    notificationId || null,
+    notificationIdNext || null,
     id
   );
 }
@@ -276,4 +318,32 @@ export async function toggleShoppingItem(db, id, isChecked) {
 
 export async function deleteShoppingItem(db, id) {
   return db.runAsync('DELETE FROM shopping_items WHERE id = ?', id);
+}
+
+// --- Custom Catalog Items ---
+
+export async function getCustomCatalogItems(db) {
+  return db.getAllAsync('SELECT * FROM custom_catalog_items ORDER BY category_id, name');
+}
+
+export async function addCustomCatalogItem(db, categoryId, name) {
+  return db.runAsync(
+    'INSERT OR IGNORE INTO custom_catalog_items (category_id, name) VALUES (?, ?)',
+    categoryId,
+    name
+  );
+}
+
+// --- Custom Shopping Categories ---
+
+export async function getCustomShoppingCategories(db) {
+  return db.getAllAsync('SELECT * FROM custom_shopping_categories ORDER BY name');
+}
+
+export async function addCustomShoppingCategory(db, name, icon) {
+  return db.runAsync(
+    'INSERT OR IGNORE INTO custom_shopping_categories (name, icon) VALUES (?, ?)',
+    name,
+    icon || '📦'
+  );
 }
