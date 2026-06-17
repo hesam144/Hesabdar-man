@@ -14,8 +14,30 @@ export async function addTransaction(db, { amount, categoryId, description, date
   );
 }
 
+export async function updateTransaction(db, id, { amount, categoryId, description, date, type }) {
+  const gDate = jalaliToGregorian(date) || date;
+  return db.runAsync(
+    'UPDATE transactions SET amount = ?, category_id = ?, description = ?, date = ?, type = ? WHERE id = ?',
+    amount,
+    categoryId,
+    description || '',
+    gDate,
+    type,
+    id
+  );
+}
+
 export async function deleteTransaction(db, id) {
   return db.runAsync('DELETE FROM transactions WHERE id = ?', id);
+}
+
+export async function hasTransactionsForDate(db, jalaliDate) {
+  const gDate = jalaliToGregorian(jalaliDate) || jalaliDate;
+  const result = await db.getFirstAsync(
+    'SELECT COUNT(*) as count FROM transactions WHERE date = ?',
+    gDate
+  );
+  return result.count > 0;
 }
 
 export async function getTransactionsByDate(db, jalaliDate) {

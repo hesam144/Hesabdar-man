@@ -23,6 +23,7 @@ import {
   toggleShoppingItem,
   deleteShoppingItem,
   addTransaction,
+  addCategory,
   getCategories,
   updateShoppingList,
   getCustomCatalogItems,
@@ -58,6 +59,21 @@ const scheduleDateNotification = async (title, body, dateObj) => {
   });
 };
 
+const CAT_ICON_OPTIONS = [
+  '🍞', '🥖', '🥐', '🧀', '🥚', '🥩', '🍗', '🍖', '🌭', '🍕', '🍔', '🌮', '🥗', '🍜', '🍝', '🍣', '🍱', '🍙', '🍚', '🍛',
+  '🥫', '🫘', '🧄', '🧅', '🌶️', '🥜', '🥕', '🍅', '🥒', '🥬', '🥦', '🍆', '🫑', '🌽', '🥔',
+  '🍎', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🫐', '🍑', '🥝', '🥭', '🍍',
+  '🥛', '🧃', '🥤', '☕', '🍵', '🧊', '🍿', '🧈', '🫒', '🍯', '🍫', '🍪', '🎂', '🍰', '🍩',
+  '🧴', '🧼', '🪥', '🧽', '🧻', '🫧', '💊', '💉', '🩹', '🩺',
+  '🔌', '🔋', '💡', '🔧', '🪛', '🔨', '🧲', '⚙️', '🛠️', '📱', '💻', '🖨️', '📀', '🎧', '📷',
+  '👕', '👖', '👗', '👟', '👠', '🧦', '🧤', '🧣', '👒', '🎽', '👓', '⌚', '💍', '👜', '🎒', '🧳',
+  '🐱', '🐶', '🐦', '🐟', '🐰', '🐹',
+  '⚽', '🏀', '🎾', '🏊', '🚴', '🎮', '🎯', '🎨', '🎵',
+  '🏠', '🛋️', '🛏️', '🪑', '🧹', '🪣', '🧯', '🪴', '💈',
+  '🚗', '🚕', '🛵', '⛽', '🚌',
+  '📦', '🛒', '🎁', '📚', '✏️', '📎', '🗂️', '💰', '🏷️', '⭐', '❤️', '🔑',
+];
+
 export default function ShoppingListScreen() {
   const db = useSQLiteContext();
   const [lists, setLists] = useState([]);
@@ -78,30 +94,6 @@ export default function ShoppingListScreen() {
   const [newItemNewCategoryIcon, setNewItemNewCategoryIcon] = useState('📦');
   const [showNewCategoryInput, setShowNewCategoryInput] = useState(false);
 
-  const CAT_ICON_OPTIONS = [
-    // غذا و نوشیدنی
-    '🍞', '🥖', '🥐', '🧀', '🥚', '🥩', '🍗', '🍖', '🌭', '🍕', '🍔', '🌮', '🥗', '🍜', '🍝', '🍣', '🍱', '🍙', '🍚', '🍛',
-    '🥫', '🫘', '🧄', '🧅', '🌶️', '🥜', '🥕', '🍅', '🥒', '🥬', '🥦', '🍆', '🫑', '🌽', '🥔',
-    '🍎', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🫐', '🍑', '🥝', '🥭', '🍍',
-    '🥛', '🧃', '🥤', '☕', '🍵', '🧊', '🍿', '🧈', '🫒', '🍯', '🍫', '🍪', '🎂', '🍰', '🍩',
-    // بهداشتی و شوینده
-    '🧴', '🧼', '🪥', '🧽', '🧻', '🫧', '💊', '💉', '🩹', '🩺',
-    // ابزار و الکترونیک
-    '🔌', '🔋', '💡', '🔧', '🪛', '🔨', '🧲', '⚙️', '🛠️', '📱', '💻', '🖨️', '📀', '🎧', '📷',
-    // پوشاک و کیف
-    '👕', '👖', '👗', '👟', '👠', '🧦', '🧤', '🧣', '👒', '🎽', '👓', '⌚', '💍', '👜', '🎒', '🧳',
-    // حیوانات
-    '🐱', '🐶', '🐦', '🐟', '🐰', '🐹',
-    // ورزش و سرگرمی
-    '⚽', '🏀', '🎾', '🏊', '🚴', '🎮', '🎯', '🎨', '🎵',
-    // خانه و نظافت
-    '🏠', '🛋️', '🛏️', '🪑', '🧹', '🪣', '🧯', '🪴', '💈',
-    // حمل و نقل
-    '🚗', '🚕', '🛵', '⛽', '🚌',
-    // متفرقه
-    '📦', '🛒', '🎁', '📚', '✏️', '📎', '🗂️', '💰', '🏷️', '⭐', '❤️', '🔑',
-  ];
-
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [listName, setListName] = useState('');
   const [listDate, setListDate] = useState(getTodayString());
@@ -112,8 +104,6 @@ export default function ShoppingListScreen() {
   const [expenseListName, setExpenseListName] = useState('');
   const [expenseListDate, setExpenseListDate] = useState('');
   const [expenseAmount, setExpenseAmount] = useState('');
-  const [expenseCategories, setExpenseCategories] = useState([]);
-  const [selectedCategory, setSelectedCategory] = useState(null);
 
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editListId, setEditListId] = useState(null);
@@ -188,66 +178,67 @@ export default function ShoppingListScreen() {
       return;
     }
 
-    let notificationId = null;
-    let notificationIdNext = null;
-    if (listNotifyDate.trim()) {
-      const notifyDateObj = jalaliToDate(listNotifyDate);
-      if (notifyDateObj && notifyDateObj > new Date()) {
-        notifyDateObj.setHours(22, 0, 0, 0);
-        try {
-          notificationId = await scheduleDateNotification(
-            'یادآوری لیست خرید 🛒',
-            `امروز روز "${listName.trim()}" ته! اگه خرید کردی جمع لیست رو بگو تا به هزینه‌ها اضافه کنم. اگه نکردی تاریخ رو تغییر بده`,
-            notifyDateObj
-          );
-        } catch (e) {
-          console.log('Failed to schedule notification:', e);
-        }
+    try {
+      let notificationId = null;
+      let notificationIdNext = null;
+      if (listNotifyDate.trim()) {
+        const notifyDateObj = jalaliToDate(listNotifyDate);
+        if (notifyDateObj && notifyDateObj > new Date()) {
+          notifyDateObj.setHours(22, 0, 0, 0);
+          try {
+            notificationId = await scheduleDateNotification(
+              'یادآوری لیست خرید 🛒',
+              `امروز روز "${listName.trim()}" ته! اگه خرید کردی جمع لیست رو بگو تا به هزینه‌ها اضافه کنم. اگه نکردی تاریخ رو تغییر بده`,
+              notifyDateObj
+            );
+          } catch (e) {
+            console.log('Failed to schedule notification:', e);
+          }
 
-        const nextDayObj = new Date(notifyDateObj);
-        nextDayObj.setDate(nextDayObj.getDate() + 1);
-        nextDayObj.setHours(9, 0, 0, 0);
-        try {
-          notificationIdNext = await scheduleDateNotification(
-            'تاریخ لیست خرید گذشته! ⚠️',
-            `تاریخ لیست "${listName.trim()}" گذشته! اگه هنوز خرید نکردی برو تاریخش رو عوض کن`,
-            nextDayObj
-          );
-        } catch (e) {
-          console.log('Failed to schedule next-day notification:', e);
+          const nextDayObj = new Date(notifyDateObj);
+          nextDayObj.setDate(nextDayObj.getDate() + 1);
+          nextDayObj.setHours(9, 0, 0, 0);
+          try {
+            notificationIdNext = await scheduleDateNotification(
+              'تاریخ لیست خرید گذشته! ⚠️',
+              `تاریخ لیست "${listName.trim()}" گذشته! اگه هنوز خرید نکردی برو تاریخش رو عوض کن`,
+              nextDayObj
+            );
+          } catch (e) {
+            console.log('Failed to schedule next-day notification:', e);
+          }
         }
       }
+
+      await createShoppingList(db, {
+        name: listName.trim(),
+        date: listDate,
+        notifyDate: listNotifyDate.trim() || null,
+        notificationId,
+        notificationIdNext,
+      });
+
+      setCreateModalVisible(false);
+      setListName('');
+      setListDate(getTodayString());
+      setListNotifyDate('');
+      loadLists();
+    } catch (e) {
+      console.log('Error creating list:', e);
+      Alert.alert('خطا', 'مشکلی در ساخت لیست پیش آمد');
     }
-
-    await createShoppingList(db, {
-      name: listName.trim(),
-      date: listDate,
-      notifyDate: listNotifyDate.trim() || null,
-      notificationId,
-      notificationIdNext,
-    });
-
-    setCreateModalVisible(false);
-    setListName('');
-    setListDate(getTodayString());
-    setListNotifyDate('');
-    loadLists();
   };
 
   const cancelListNotifications = async (list) => {
     if (list.notification_id) {
       try {
         await Notifications.cancelScheduledNotificationAsync(list.notification_id);
-      } catch (e) {
-        console.log('Failed to cancel notification:', e);
-      }
+      } catch (e) {}
     }
     if (list.notification_id_next) {
       try {
         await Notifications.cancelScheduledNotificationAsync(list.notification_id_next);
-      } catch (e) {
-        console.log('Failed to cancel next-day notification:', e);
-      }
+      } catch (e) {}
     }
   };
 
@@ -282,17 +273,19 @@ export default function ShoppingListScreen() {
   };
 
   const handleConfirmCatalogItem = async () => {
-    if (!expandedId || !qtyItemName) return;
-    await addShoppingItem(db, {
-      listId: expandedId,
-      name: qtyItemName,
-      quantity: qtyValue.trim() || '1',
-    });
-    setQtyModalVisible(false);
-    setQtyItemName('');
-    setQtyValue('1');
-    await loadItems(expandedId);
-    loadLists();
+    if (!expandedId) return;
+    try {
+      await addShoppingItem(db, {
+        listId: expandedId,
+        name: qtyItemName,
+        quantity: qtyValue.trim() || '1',
+      });
+      await loadItems(expandedId);
+      loadLists();
+      setQtyModalVisible(false);
+    } catch (e) {
+      console.log('Error adding item:', e);
+    }
   };
 
   const handleOpenAddNew = () => {
@@ -311,35 +304,40 @@ export default function ShoppingListScreen() {
       return;
     }
 
-    let categoryId = newItemCategoryId;
+    try {
+      let categoryId = newItemCategoryId;
 
-    if (showNewCategoryInput) {
-      if (!newItemNewCategoryName.trim()) {
-        Alert.alert('خطا', 'نام دسته‌بندی جدید را وارد کنید');
-        return;
+      if (showNewCategoryInput) {
+        if (!newItemNewCategoryName.trim()) {
+          Alert.alert('خطا', 'نام دسته‌بندی جدید را وارد کنید');
+          return;
+        }
+        await addCustomShoppingCategory(db, newItemNewCategoryName.trim(), newItemNewCategoryIcon);
+        const cats = await getCustomShoppingCategories(db);
+        const newCat = cats.find((c) => c.name === newItemNewCategoryName.trim());
+        if (newCat) categoryId = `custom_${newCat.id}`;
       }
-      await addCustomShoppingCategory(db, newItemNewCategoryName.trim(), newItemNewCategoryIcon);
-      const cats = await getCustomShoppingCategories(db);
-      const newCat = cats.find((c) => c.name === newItemNewCategoryName.trim());
-      if (newCat) categoryId = `custom_${newCat.id}`;
-    }
 
-    if (categoryId) {
-      await addCustomCatalogItem(db, categoryId, newItemName.trim());
-    }
+      if (categoryId) {
+        await addCustomCatalogItem(db, categoryId, newItemName.trim());
+      }
 
-    if (expandedId) {
-      await addShoppingItem(db, {
-        listId: expandedId,
-        name: newItemName.trim(),
-        quantity: newItemQty.trim() || '1',
-      });
-      await loadItems(expandedId);
-      loadLists();
-    }
+      if (expandedId) {
+        await addShoppingItem(db, {
+          listId: expandedId,
+          name: newItemName.trim(),
+          quantity: newItemQty.trim() || '1',
+        });
+        await loadItems(expandedId);
+        loadLists();
+      }
 
-    await loadMergedCategories();
-    setAddNewModalVisible(false);
+      await loadMergedCategories();
+      setAddNewModalVisible(false);
+    } catch (e) {
+      console.log('Error saving new item:', e);
+      Alert.alert('خطا', 'مشکلی در ذخیره آیتم پیش آمد');
+    }
   };
 
   const toggleCatalogCategory = (catId) => {
@@ -358,14 +356,11 @@ export default function ShoppingListScreen() {
     loadLists();
   };
 
-  const handleAddExpense = async (list) => {
-    const cats = await getCategories(db, 'expense');
-    setExpenseCategories(cats);
+  const handleAddExpense = (list) => {
     setExpenseListId(list.id);
     setExpenseListName(list.name);
     setExpenseListDate(gregorianToJalali(list.date));
     setExpenseAmount('');
-    setSelectedCategory(null);
     setExpenseModalVisible(true);
   };
 
@@ -374,47 +369,59 @@ export default function ShoppingListScreen() {
       Alert.alert('خطا', 'مبلغ را وارد کنید');
       return;
     }
-    if (!selectedCategory) {
-      Alert.alert('خطا', 'دسته‌بندی را انتخاب کنید');
-      return;
+
+    try {
+      let cats = await getCategories(db, 'expense');
+      let shoppingCat = cats.find((c) => c.name === 'خرید');
+      if (!shoppingCat) {
+        await addCategory(db, { name: 'خرید', icon: '🛒', type: 'expense' });
+        cats = await getCategories(db, 'expense');
+        shoppingCat = cats.find((c) => c.name === 'خرید');
+      }
+
+      await addTransaction(db, {
+        amount: parseFloat(expenseAmount),
+        categoryId: shoppingCat.id,
+        description: `🛒 ${expenseListName}`,
+        date: expenseListDate,
+        type: 'expense',
+      });
+
+      setExpenseModalVisible(false);
+      const currentListId = expenseListId;
+
+      Alert.alert(
+        'هزینه ثبت شد',
+        `هزینه "${expenseListName}" به مبلغ ${expenseAmount} تومان ثبت شد.\nلیست خرید رو حذف کنم؟`,
+        [
+          {
+            text: 'نه، نگهش دار',
+            style: 'cancel',
+            onPress: async () => {
+              await markShoppingListPurchased(db, currentListId);
+              loadLists();
+            },
+          },
+          {
+            text: 'بله، حذفش کن',
+            style: 'destructive',
+            onPress: async () => {
+              const list = lists.find((l) => l.id === currentListId);
+              if (list) await cancelListNotifications(list);
+              await deleteShoppingList(db, currentListId);
+              if (expandedId === currentListId) {
+                setExpandedId(null);
+                setExpandedItems([]);
+              }
+              loadLists();
+            },
+          },
+        ]
+      );
+    } catch (e) {
+      console.log('Error submitting expense:', e);
+      Alert.alert('خطا', 'مشکلی در ثبت هزینه پیش آمد');
     }
-    await addTransaction(db, {
-      amount: parseFloat(expenseAmount),
-      categoryId: selectedCategory.id,
-      description: `لیست خرید: ${expenseListName}`,
-      date: expenseListDate,
-      type: 'expense',
-    });
-    setExpenseModalVisible(false);
-    const currentListId = expenseListId;
-    Alert.alert(
-      'هزینه ثبت شد',
-      `هزینه "${expenseListName}" ثبت شد. میخوای لیست خرید رو هم حذف کنی؟`,
-      [
-        {
-          text: 'نه، نگهش دار',
-          style: 'cancel',
-          onPress: async () => {
-            await markShoppingListPurchased(db, currentListId);
-            loadLists();
-          },
-        },
-        {
-          text: 'بله، حذفش کن',
-          style: 'destructive',
-          onPress: async () => {
-            const list = lists.find((l) => l.id === currentListId);
-            if (list) await cancelListNotifications(list);
-            await deleteShoppingList(db, currentListId);
-            if (expandedId === currentListId) {
-              setExpandedId(null);
-              setExpandedItems([]);
-            }
-            loadLists();
-          },
-        },
-      ]
-    );
   };
 
   const handleOpenEdit = (list) => {
@@ -433,59 +440,58 @@ export default function ShoppingListScreen() {
       return;
     }
 
-    if (editOldNotificationId) {
-      try { await Notifications.cancelScheduledNotificationAsync(editOldNotificationId); } catch (e) {}
-    }
-    if (editOldNotificationIdNext) {
-      try { await Notifications.cancelScheduledNotificationAsync(editOldNotificationIdNext); } catch (e) {}
-    }
+    try {
+      if (editOldNotificationId) {
+        try { await Notifications.cancelScheduledNotificationAsync(editOldNotificationId); } catch (e) {}
+      }
+      if (editOldNotificationIdNext) {
+        try { await Notifications.cancelScheduledNotificationAsync(editOldNotificationIdNext); } catch (e) {}
+      }
 
-    let notificationId = null;
-    let notificationIdNext = null;
-    if (editNotifyDate.trim()) {
-      const notifyDateObj = jalaliToDate(editNotifyDate);
-      if (notifyDateObj && notifyDateObj > new Date()) {
-        notifyDateObj.setHours(22, 0, 0, 0);
-        try {
-          notificationId = await scheduleDateNotification(
-            'یادآوری لیست خرید 🛒',
-            `امروز روز "${editName.trim()}" ته! اگه خرید کردی جمع لیست رو بگو تا به هزینه‌ها اضافه کنم. اگه نکردی تاریخ رو تغییر بده`,
-            notifyDateObj
-          );
-        } catch (e) {
-          console.log('Failed to schedule notification:', e);
-        }
-
-        const nextDayObj = new Date(notifyDateObj);
-        nextDayObj.setDate(nextDayObj.getDate() + 1);
-        nextDayObj.setHours(9, 0, 0, 0);
-        try {
-          notificationIdNext = await scheduleDateNotification(
-            'تاریخ لیست خرید گذشته! ⚠️',
-            `تاریخ لیست "${editName.trim()}" گذشته! اگه هنوز خرید نکردی برو تاریخش رو عوض کن`,
-            nextDayObj
-          );
-        } catch (e) {
-          console.log('Failed to schedule next-day notification:', e);
+      let notificationId = null;
+      let notificationIdNext = null;
+      if (editNotifyDate.trim()) {
+        const notifyDateObj = jalaliToDate(editNotifyDate);
+        if (notifyDateObj && notifyDateObj > new Date()) {
+          notifyDateObj.setHours(22, 0, 0, 0);
+          try {
+            notificationId = await scheduleDateNotification(
+              'یادآوری لیست خرید 🛒',
+              `امروز روز "${editName.trim()}" ته! اگه خرید کردی جمع لیست رو بگو. اگه نکردی تاریخ رو تغییر بده`,
+              notifyDateObj
+            );
+          } catch (e) {}
+          const nextDayObj = new Date(notifyDateObj);
+          nextDayObj.setDate(nextDayObj.getDate() + 1);
+          nextDayObj.setHours(9, 0, 0, 0);
+          try {
+            notificationIdNext = await scheduleDateNotification(
+              'تاریخ لیست خرید گذشته! ⚠️',
+              `تاریخ لیست "${editName.trim()}" گذشته! تاریخش رو عوض کن`,
+              nextDayObj
+            );
+          } catch (e) {}
         }
       }
+
+      await updateShoppingList(db, editListId, {
+        name: editName.trim(),
+        date: editDate,
+        notifyDate: editNotifyDate.trim() || null,
+        notificationId,
+        notificationIdNext,
+      });
+
+      setEditModalVisible(false);
+      loadLists();
+    } catch (e) {
+      console.log('Error saving edit:', e);
+      Alert.alert('خطا', 'مشکلی در ذخیره تغییرات پیش آمد');
     }
-
-    await updateShoppingList(db, editListId, {
-      name: editName.trim(),
-      date: editDate,
-      notifyDate: editNotifyDate.trim() || null,
-      notificationId,
-      notificationIdNext,
-    });
-
-    setEditModalVisible(false);
-    loadLists();
   };
 
   const handleShareList = async (list) => {
     const items = await getShoppingItems(db, list.id);
-
     const itemLines = items.map((i) => {
       const qty = i.quantity ? `  ×${i.quantity}` : '';
       return `• ${i.name}${qty}`;
@@ -514,7 +520,7 @@ export default function ShoppingListScreen() {
 
   return (
     <View style={styles.container}>
-      <ScrollView style={styles.list}>
+      <ScrollView style={styles.list} keyboardShouldPersistTaps="handled">
         {lists.length === 0 && (
           <View style={styles.emptyCard}>
             <Text style={styles.emptyIcon}>🛒</Text>
@@ -540,7 +546,6 @@ export default function ShoppingListScreen() {
                 onPress={() => handleExpand(list.id)}
                 activeOpacity={0.7}
               >
-                {/* Progress bar */}
                 <View style={styles.progressBarBg}>
                   <View
                     style={[
@@ -558,29 +563,19 @@ export default function ShoppingListScreen() {
                     onPress={() => handleToggleComplete(list)}
                     style={styles.checkBtn}
                   >
-                    <View style={[
-                      styles.checkbox,
-                      list.is_completed && styles.checkboxChecked,
-                    ]}>
+                    <View style={[styles.checkbox, list.is_completed && styles.checkboxChecked]}>
                       {list.is_completed && <Text style={styles.checkMark}>✓</Text>}
                     </View>
                   </TouchableOpacity>
 
                   <View style={styles.listInfo}>
-                    <Text style={[
-                      styles.listName,
-                      list.is_completed && styles.listNameCompleted,
-                    ]}>
+                    <Text style={[styles.listName, list.is_completed && styles.listNameCompleted]}>
                       {list.name}
                     </Text>
                     <View style={styles.listMeta}>
-                      <Text style={styles.listDate}>
-                        📅 {gregorianToJalali(list.date)}
-                      </Text>
+                      <Text style={styles.listDate}>📅 {gregorianToJalali(list.date)}</Text>
                       {list.notify_date && (
-                        <Text style={styles.listNotify}>
-                          🔔 {gregorianToJalali(list.notify_date)}
-                        </Text>
+                        <Text style={styles.listNotify}>🔔 {gregorianToJalali(list.notify_date)}</Text>
                       )}
                     </View>
                     <View style={[
@@ -598,27 +593,16 @@ export default function ShoppingListScreen() {
 
                   <View style={styles.listActions}>
                     <View style={styles.badge}>
-                      <Text style={styles.badgeText}>
-                        {list.checked_items}/{list.total_items}
-                      </Text>
+                      <Text style={styles.badgeText}>{list.checked_items}/{list.total_items}</Text>
                     </View>
                     <View style={styles.actionBtns}>
-                      <TouchableOpacity
-                        onPress={() => handleOpenEdit(list)}
-                        style={styles.actionBtn}
-                      >
+                      <TouchableOpacity onPress={() => handleOpenEdit(list)} style={styles.actionBtn}>
                         <Text style={styles.actionBtnText}>✏️</Text>
                       </TouchableOpacity>
-                      <TouchableOpacity
-                        onPress={() => handleShareList(list)}
-                        style={styles.actionBtn}
-                      >
+                      <TouchableOpacity onPress={() => handleShareList(list)} style={styles.actionBtn}>
                         <Text style={styles.actionBtnText}>📤</Text>
                       </TouchableOpacity>
-                      <TouchableOpacity
-                        onPress={() => handleDeleteList(list)}
-                        style={styles.actionBtn}
-                      >
+                      <TouchableOpacity onPress={() => handleDeleteList(list)} style={styles.actionBtn}>
                         <Text style={styles.actionBtnText}>🗑️</Text>
                       </TouchableOpacity>
                     </View>
@@ -631,7 +615,7 @@ export default function ShoppingListScreen() {
                   </Text>
                 </View>
 
-                {list.is_completed && list.total_items > 0 && (
+                {list.is_completed && list.total_items > 0 && !list.is_purchased && (
                   <TouchableOpacity
                     style={styles.addExpenseBtn}
                     onPress={() => handleAddExpense(list)}
@@ -649,21 +633,12 @@ export default function ShoppingListScreen() {
 
                   {expandedItems.map((item) => (
                     <View key={item.id} style={styles.itemRow}>
-                      <TouchableOpacity
-                        onPress={() => handleToggleItem(item)}
-                        style={styles.itemCheckBtn}
-                      >
-                        <View style={[
-                          styles.itemCheckbox,
-                          item.is_checked && styles.itemCheckboxChecked,
-                        ]}>
+                      <TouchableOpacity onPress={() => handleToggleItem(item)} style={styles.itemCheckBtn}>
+                        <View style={[styles.itemCheckbox, item.is_checked && styles.itemCheckboxChecked]}>
                           {item.is_checked && <Text style={styles.itemCheckMark}>✓</Text>}
                         </View>
                       </TouchableOpacity>
-                      <Text style={[
-                        styles.itemName,
-                        item.is_checked && styles.itemNameChecked,
-                      ]}>
+                      <Text style={[styles.itemName, item.is_checked && styles.itemNameChecked]}>
                         {item.name}
                       </Text>
                       {item.quantity ? (
@@ -671,16 +646,12 @@ export default function ShoppingListScreen() {
                           <Text style={styles.qtyText}>×{item.quantity}</Text>
                         </View>
                       ) : null}
-                      <TouchableOpacity
-                        onPress={() => handleDeleteItem(item)}
-                        style={styles.itemDeleteBtn}
-                      >
+                      <TouchableOpacity onPress={() => handleDeleteItem(item)} style={styles.itemDeleteBtn}>
                         <Text style={styles.itemDeleteText}>✕</Text>
                       </TouchableOpacity>
                     </View>
                   ))}
 
-                  {/* Catalog accordion - always visible */}
                   <View style={styles.catalogContainer}>
                     {mergedCategories.map((cat) => {
                       const isOpen = openCategoryId === cat.id;
@@ -719,22 +690,16 @@ export default function ShoppingListScreen() {
                     })}
                   </View>
 
-                  {/* Single 'Add New Item' button */}
-                  <TouchableOpacity
-                    style={styles.addNewItemBtn}
-                    onPress={handleOpenAddNew}
-                  >
-                    <Text style={styles.addNewItemBtnText}>+ آیتم جدید (اگه توی لیست بالا نیست)</Text>
+                  <TouchableOpacity style={styles.addNewItemBtn} onPress={handleOpenAddNew}>
+                    <Text style={styles.addNewItemBtnText}>+ آیتم جدید</Text>
                   </TouchableOpacity>
 
-                  {/* Save / Close buttons */}
                   <View style={styles.expandedActions}>
                     <TouchableOpacity
                       style={styles.saveListBtn}
                       onPress={() => {
                         setExpandedId(null);
                         setExpandedItems([]);
-                        setShowCatalog(false);
                       }}
                     >
                       <Text style={styles.saveListBtnText}>✓ ذخیره و بستن</Text>
@@ -744,7 +709,6 @@ export default function ShoppingListScreen() {
                       onPress={() => {
                         setExpandedId(null);
                         setExpandedItems([]);
-                        setShowCatalog(false);
                       }}
                     >
                       <Text style={styles.cancelListBtnText}>بستن</Text>
@@ -758,7 +722,6 @@ export default function ShoppingListScreen() {
         <View style={{ height: 80 }} />
       </ScrollView>
 
-      {/* FAB */}
       <TouchableOpacity style={styles.fab} onPress={() => setCreateModalVisible(true)}>
         <Text style={styles.fabText}>+</Text>
       </TouchableOpacity>
@@ -780,7 +743,6 @@ export default function ShoppingListScreen() {
               onChangeText={setListName}
               placeholderTextColor={COLORS.textLight}
             />
-
             <Text style={styles.modalLabel}>📅 تاریخ خرید (شمسی)</Text>
             <TextInput
               style={styles.modalInput}
@@ -789,7 +751,6 @@ export default function ShoppingListScreen() {
               onChangeText={setListDate}
               placeholderTextColor={COLORS.textLight}
             />
-
             <Text style={styles.modalLabel}>🔔 تاریخ یادآوری (اختیاری)</Text>
             <TextInput
               style={styles.modalInput}
@@ -814,7 +775,7 @@ export default function ShoppingListScreen() {
         </View>
       </Modal>
 
-      {/* Expense Modal */}
+      {/* Expense Modal - Simplified */}
       <Modal visible={expenseModalVisible} transparent animationType="slide" onRequestClose={() => setExpenseModalVisible(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -824,11 +785,15 @@ export default function ShoppingListScreen() {
               <Text style={styles.modalTitle}>ثبت هزینه خرید</Text>
             </View>
 
-            <Text style={styles.expenseListInfo}>
-              لیست: {expenseListName}  |  📅 {expenseListDate}
-            </Text>
+            <View style={styles.expenseInfoCard}>
+              <Text style={styles.expenseInfoIcon}>🛒</Text>
+              <View>
+                <Text style={styles.expenseInfoName}>{expenseListName}</Text>
+                <Text style={styles.expenseInfoDate}>📅 {expenseListDate}</Text>
+              </View>
+            </View>
 
-            <Text style={styles.modalLabel}>مبلغ کل (تومان)</Text>
+            <Text style={styles.modalLabel}>مبلغ کل خرید (تومان)</Text>
             <TextInput
               style={styles.modalInput}
               placeholder="مثلاً ۵۰۰۰۰۰"
@@ -836,31 +801,12 @@ export default function ShoppingListScreen() {
               value={expenseAmount}
               onChangeText={setExpenseAmount}
               placeholderTextColor={COLORS.textLight}
+              autoFocus
             />
 
-            <Text style={styles.modalLabel}>دسته‌بندی</Text>
-            <ScrollView style={styles.categoryScroll} nestedScrollEnabled horizontal={false}>
-              <View style={styles.categoryGrid}>
-                {expenseCategories.map((cat) => (
-                  <TouchableOpacity
-                    key={cat.id}
-                    style={[
-                      styles.categoryChip,
-                      selectedCategory?.id === cat.id && styles.categoryChipActive,
-                    ]}
-                    onPress={() => setSelectedCategory(cat)}
-                  >
-                    <Text style={styles.categoryChipIcon}>{cat.icon}</Text>
-                    <Text style={[
-                      styles.categoryChipText,
-                      selectedCategory?.id === cat.id && styles.categoryChipTextActive,
-                    ]}>
-                      {cat.name}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </ScrollView>
+            <Text style={styles.expenseNote}>
+              هزینه با نام «{expenseListName}» در دسته‌بندی خرید ثبت میشه
+            </Text>
 
             <View style={styles.modalActions}>
               <TouchableOpacity style={styles.modalSaveBtn} onPress={handleSubmitExpense}>
@@ -895,7 +841,6 @@ export default function ShoppingListScreen() {
               onChangeText={setEditName}
               placeholderTextColor={COLORS.textLight}
             />
-
             <Text style={styles.modalLabel}>📅 تاریخ خرید (شمسی)</Text>
             <TextInput
               style={styles.modalInput}
@@ -904,7 +849,6 @@ export default function ShoppingListScreen() {
               onChangeText={setEditDate}
               placeholderTextColor={COLORS.textLight}
             />
-
             <Text style={styles.modalLabel}>🔔 تاریخ یادآوری (اختیاری)</Text>
             <TextInput
               style={styles.modalInput}
@@ -929,7 +873,7 @@ export default function ShoppingListScreen() {
         </View>
       </Modal>
 
-      {/* Quantity Prompt Modal */}
+      {/* Quantity Modal */}
       <Modal visible={qtyModalVisible} transparent animationType="slide" onRequestClose={() => setQtyModalVisible(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -948,10 +892,7 @@ export default function ShoppingListScreen() {
               <TouchableOpacity style={styles.modalSaveBtn} onPress={handleConfirmCatalogItem}>
                 <Text style={styles.modalSaveBtnText}>افزودن</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.modalCancelBtn}
-                onPress={() => setQtyModalVisible(false)}
-              >
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setQtyModalVisible(false)}>
                 <Text style={styles.modalCancelBtnText}>انصراف</Text>
               </TouchableOpacity>
             </View>
@@ -959,14 +900,14 @@ export default function ShoppingListScreen() {
         </View>
       </Modal>
 
-      {/* Unified Add New Item Modal */}
+      {/* Add New Item Modal */}
       <Modal visible={addNewModalVisible} transparent animationType="slide" onRequestClose={() => setAddNewModalVisible(false)}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { maxHeight: '85%' }]}>
             <View style={styles.modalHandle} />
             <Text style={styles.modalTitle}>افزودن آیتم جدید</Text>
 
-            <ScrollView showsVerticalScrollIndicator={false} nestedScrollEnabled style={{ flexShrink: 1 }}>
+            <ScrollView showsVerticalScrollIndicator={false} nestedScrollEnabled style={{ flexShrink: 1 }} keyboardShouldPersistTaps="handled">
               <Text style={[styles.label, { marginBottom: 6 }]}>نام کالا</Text>
               <TextInput
                 style={styles.modalInput}
@@ -976,7 +917,7 @@ export default function ShoppingListScreen() {
                 placeholderTextColor={COLORS.textLight}
               />
 
-              <Text style={[styles.label, { marginTop: 12, marginBottom: 6 }]}>تعداد</Text>
+              <Text style={[styles.label, { marginTop: 4, marginBottom: 6 }]}>تعداد</Text>
               <TextInput
                 style={styles.modalInput}
                 placeholder="۱"
@@ -986,7 +927,7 @@ export default function ShoppingListScreen() {
                 placeholderTextColor={COLORS.textLight}
               />
 
-              <Text style={[styles.label, { marginTop: 12, marginBottom: 6 }]}>دسته‌بندی (اختیاری)</Text>
+              <Text style={[styles.label, { marginTop: 4, marginBottom: 6 }]}>دسته‌بندی (اختیاری)</Text>
               {!showNewCategoryInput ? (
                 <>
                   {mergedCategories.map((cat) => (
@@ -1021,7 +962,7 @@ export default function ShoppingListScreen() {
                     onChangeText={setNewItemNewCategoryName}
                     placeholderTextColor={COLORS.textLight}
                   />
-                  <Text style={[styles.label, { marginTop: 8, marginBottom: 6 }]}>آیکون:</Text>
+                  <Text style={[styles.label, { marginTop: 4, marginBottom: 6 }]}>آیکون:</Text>
                   <View style={styles.newCatIconGrid}>
                     {CAT_ICON_OPTIONS.map((icon) => (
                       <TouchableOpacity
@@ -1046,7 +987,7 @@ export default function ShoppingListScreen() {
               )}
             </ScrollView>
 
-            <View style={[styles.modalActions, { marginTop: 16 }]}>
+            <View style={[styles.modalActions, { marginTop: 12 }]}>
               <TouchableOpacity style={styles.modalSaveBtn} onPress={handleSaveNewItem}>
                 <Text style={styles.modalSaveBtnText}>ذخیره و افزودن</Text>
               </TouchableOpacity>
@@ -1065,687 +1006,105 @@ export default function ShoppingListScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  list: {
-    flex: 1,
-    paddingHorizontal: 16,
-    paddingTop: 12,
-  },
-  emptyCard: {
-    backgroundColor: COLORS.card,
-    borderRadius: 20,
-    padding: 40,
-    alignItems: 'center',
-    marginTop: 40,
-    elevation: 2,
-    shadowColor: COLORS.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  emptyIcon: {
-    fontSize: 56,
-    marginBottom: 16,
-  },
-  emptyText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: COLORS.text,
-    marginBottom: 8,
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: COLORS.textLight,
-    textAlign: 'center',
-  },
-  listWrapper: {
-    marginBottom: 12,
-  },
-  listCard: {
-    backgroundColor: COLORS.card,
-    borderRadius: 16,
-    overflow: 'hidden',
-    elevation: 2,
-    shadowColor: COLORS.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  listCardCompleted: {
-    opacity: 0.65,
-  },
-  listCardExpanded: {
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
-  },
-  progressBarBg: {
-    height: 4,
-    backgroundColor: COLORS.border,
-  },
-  progressBarFill: {
-    height: 4,
-    borderRadius: 2,
-  },
-  listHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 14,
-  },
-  checkBtn: {
-    padding: 4,
-    marginLeft: 10,
-  },
-  checkbox: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    borderWidth: 2.5,
-    borderColor: COLORS.border,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: COLORS.background,
-  },
-  checkboxChecked: {
-    backgroundColor: COLORS.green,
-    borderColor: COLORS.green,
-  },
-  checkMark: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  listInfo: {
-    flex: 1,
-    marginRight: 4,
-  },
-  listName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: COLORS.text,
-    textAlign: 'right',
-  },
-  listNameCompleted: {
-    textDecorationLine: 'line-through',
-    color: COLORS.textLight,
-  },
-  listMeta: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 12,
-    marginTop: 4,
-  },
-  listDate: {
-    fontSize: 12,
-    color: COLORS.textLight,
-  },
-  listNotify: {
-    fontSize: 12,
-    color: COLORS.orange,
-  },
-  listActions: {
-    alignItems: 'center',
-  },
-  badge: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    marginBottom: 6,
-  },
-  badgeText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  actionBtns: {
-    flexDirection: 'row',
-    gap: 4,
-  },
-  actionBtn: {
-    padding: 4,
-  },
-  actionBtnText: {
-    fontSize: 16,
-  },
-  expandHint: {
-    alignItems: 'center',
-    paddingBottom: 8,
-  },
-  expandHintText: {
-    fontSize: 11,
-    color: COLORS.textLight,
-  },
-  itemsContainer: {
-    backgroundColor: COLORS.card,
-    borderBottomLeftRadius: 16,
-    borderBottomRightRadius: 16,
-    paddingHorizontal: 14,
-    paddingBottom: 14,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-    elevation: 2,
-    shadowColor: COLORS.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  noItemsText: {
-    textAlign: 'center',
-    color: COLORS.textLight,
-    fontSize: 14,
-    paddingVertical: 16,
-  },
-  itemRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  itemCheckBtn: {
-    padding: 4,
-    marginLeft: 8,
-  },
-  itemCheckbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: COLORS.border,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: COLORS.background,
-  },
-  itemCheckboxChecked: {
-    backgroundColor: COLORS.green,
-    borderColor: COLORS.green,
-  },
-  itemCheckMark: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  itemName: {
-    flex: 1,
-    fontSize: 15,
-    color: COLORS.text,
-    textAlign: 'right',
-    marginRight: 4,
-  },
-  itemNameChecked: {
-    textDecorationLine: 'line-through',
-    color: COLORS.textLight,
-  },
-  qtyBadge: {
-    backgroundColor: '#EDF2F7',
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    marginHorizontal: 6,
-  },
-  qtyText: {
-    fontSize: 12,
-    color: COLORS.primary,
-    fontWeight: '600',
-  },
-  itemDeleteBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#FEE2E2',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  itemDeleteText: {
-    color: COLORS.red,
-    fontSize: 13,
-    fontWeight: 'bold',
-  },
-  addItemRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 12,
-    gap: 8,
-  },
-  addItemInput: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
-    color: COLORS.text,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    textAlign: 'right',
-  },
-  addItemQtyInput: {
-    width: 65,
-    backgroundColor: COLORS.background,
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-    fontSize: 14,
-    color: COLORS.text,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    textAlign: 'center',
-  },
-  addItemBtn: {
-    backgroundColor: COLORS.primary,
-    width: 42,
-    height: 42,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  addItemBtnText: {
-    color: '#fff',
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  fab: {
-    position: 'absolute',
-    bottom: 20,
-    left: 20,
-    backgroundColor: COLORS.primary,
-    width: 58,
-    height: 58,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 6,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-  },
-  fabText: {
-    color: '#fff',
-    fontSize: 30,
-    fontWeight: 'bold',
-  },
-  // Modal styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: COLORS.card,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
-    paddingBottom: 32,
-    width: '100%',
-    maxHeight: '90%',
-  },
-  modalHandle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#D0D5DD',
-    alignSelf: 'center',
-    marginBottom: 16,
-  },
-  modalHeader: {
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  modalIcon: {
-    fontSize: 40,
-    marginBottom: 8,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: COLORS.text,
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  modalInput: {
-    backgroundColor: COLORS.background,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
-    color: COLORS.text,
-    borderWidth: 1.5,
-    borderColor: COLORS.border,
-    textAlign: 'right',
-    marginBottom: 12,
-  },
-  modalLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.text,
-    marginBottom: 6,
-    textAlign: 'right',
-  },
-  modalActions: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 12,
-  },
-  modalSaveBtn: {
-    flex: 1,
-    backgroundColor: COLORS.primary,
-    borderRadius: 14,
-    paddingVertical: 16,
-    alignItems: 'center',
-    elevation: 2,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-  },
-  modalSaveBtnText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  modalCancelBtn: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-    borderRadius: 14,
-    paddingVertical: 16,
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: COLORS.border,
-  },
-  modalCancelBtnText: {
-    color: COLORS.textLight,
-    fontSize: 16,
-  },
-  addExpenseBtn: {
-    backgroundColor: COLORS.green,
-    marginHorizontal: 14,
-    marginBottom: 12,
-    borderRadius: 10,
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
-  addExpenseBtnText: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  expenseListInfo: {
-    fontSize: 14,
-    color: COLORS.textLight,
-    textAlign: 'center',
-    marginBottom: 16,
-    backgroundColor: COLORS.background,
-    borderRadius: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-  },
-  categoryScroll: {
-    maxHeight: 120,
-    marginBottom: 12,
-  },
-  categoryGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  categoryChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.background,
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderWidth: 1.5,
-    borderColor: COLORS.border,
-  },
-  categoryChipActive: {
-    borderColor: COLORS.primary,
-    backgroundColor: '#E8F0FE',
-  },
-  categoryChipIcon: {
-    fontSize: 14,
-    marginLeft: 5,
-  },
-  categoryChipText: {
-    fontSize: 12,
-    color: COLORS.text,
-  },
-  categoryChipTextActive: {
-    color: COLORS.primary,
-    fontWeight: '600',
-  },
-  catalogToggle: {
-    marginTop: 12,
-    backgroundColor: '#EDF2F7',
-    borderRadius: 10,
-    paddingVertical: 10,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderStyle: 'dashed',
-  },
-  catalogToggleText: {
-    fontSize: 14,
-    color: COLORS.primary,
-    fontWeight: '600',
-  },
-  catalogContainer: {
-    marginTop: 10,
-  },
-  catalogHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.background,
-    borderRadius: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    marginBottom: 4,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  catalogHeaderOpen: {
-    backgroundColor: '#E8F0FE',
-    borderColor: COLORS.primary,
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
-    marginBottom: 0,
-  },
-  catalogHeaderIcon: {
-    fontSize: 20,
-    marginLeft: 8,
-  },
-  catalogHeaderText: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '600',
-    color: COLORS.text,
-    textAlign: 'right',
-  },
-  catalogHeaderArrow: {
-    fontSize: 11,
-    color: COLORS.textLight,
-  },
-  catalogItems: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    padding: 10,
-    backgroundColor: '#FAFBFC',
-    borderWidth: 1,
-    borderTopWidth: 0,
-    borderColor: COLORS.primary,
-    borderBottomLeftRadius: 10,
-    borderBottomRightRadius: 10,
-    marginBottom: 4,
-  },
-  catalogItem: {
-    backgroundColor: COLORS.card,
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  catalogItemAdded: {
-    backgroundColor: '#E8F5E9',
-    borderColor: COLORS.green,
-  },
-  catalogItemText: {
-    fontSize: 13,
-    color: COLORS.text,
-  },
-  catalogItemTextAdded: {
-    color: COLORS.green,
-  },
-  statusBadge: {
-    marginTop: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 8,
-    alignSelf: 'flex-start',
-  },
-  statusPurchased: {
-    backgroundColor: '#E8F5E9',
-  },
-  statusPending: {
-    backgroundColor: '#FFF3E0',
-  },
-  statusText: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  statusTextPurchased: {
-    color: '#2E7D32',
-  },
-  statusTextPending: {
-    color: '#E65100',
-  },
-  expandedActions: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-  },
-  saveListBtn: {
-    flex: 1,
-    backgroundColor: COLORS.primary,
-    borderRadius: 10,
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
-  saveListBtnText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  cancelListBtn: {
-    flex: 1,
-    backgroundColor: COLORS.card,
-    borderRadius: 10,
-    paddingVertical: 10,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  cancelListBtnText: {
-    color: COLORS.textLight,
-    fontSize: 14,
-  },
-  addNewItemBtn: {
-    marginTop: 10,
-    paddingVertical: 12,
-    backgroundColor: COLORS.primary,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  addNewItemBtnText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  modalScrollContent: {
-    flexGrow: 1,
-    justifyContent: 'flex-end',
-  },
-  newCategoryToggle: {
-    marginTop: 10,
-    paddingVertical: 10,
-    alignItems: 'center',
-    backgroundColor: '#F0F4FF',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: COLORS.primary,
-    borderStyle: 'dashed',
-  },
-  newCategoryToggleText: {
-    color: COLORS.primary,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  customCatOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: 12,
-    marginBottom: 6,
-    backgroundColor: COLORS.background,
-    borderWidth: 1.5,
-    borderColor: COLORS.border,
-  },
-  customCatOptionActive: {
-    borderColor: COLORS.primary,
-    backgroundColor: '#E3F2FD',
-  },
-  customCatOptionIcon: {
-    fontSize: 22,
-    marginLeft: 10,
-  },
-  customCatOptionText: {
-    fontSize: 15,
-    color: COLORS.text,
-  },
-  customCatOptionTextActive: {
-    color: COLORS.primary,
-    fontWeight: '700',
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.text,
-    textAlign: 'right',
-  },
-  newCatIconGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    justifyContent: 'center',
-    marginBottom: 16,
-    paddingVertical: 8,
-  },
-  newCatIconOption: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.background,
-    borderWidth: 2,
-    borderColor: COLORS.border,
-  },
-  newCatIconOptionActive: {
-    borderColor: COLORS.primary,
-    backgroundColor: '#E3F2FD',
-    elevation: 2,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-  },
+  container: { flex: 1, backgroundColor: COLORS.background },
+  list: { flex: 1, paddingHorizontal: 16, paddingTop: 12 },
+  emptyCard: { backgroundColor: COLORS.card, borderRadius: 20, padding: 40, alignItems: 'center', marginTop: 40, elevation: 2 },
+  emptyIcon: { fontSize: 56, marginBottom: 16 },
+  emptyText: { fontSize: 18, fontWeight: 'bold', color: COLORS.text, marginBottom: 8 },
+  emptySubtext: { fontSize: 14, color: COLORS.textLight, textAlign: 'center' },
+  listWrapper: { marginBottom: 12 },
+  listCard: { backgroundColor: COLORS.card, borderRadius: 16, overflow: 'hidden', elevation: 2, shadowColor: COLORS.shadow, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 4 },
+  listCardCompleted: { opacity: 0.65 },
+  listCardExpanded: { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 },
+  progressBarBg: { height: 4, backgroundColor: COLORS.border },
+  progressBarFill: { height: 4, borderRadius: 2 },
+  listHeader: { flexDirection: 'row', alignItems: 'center', padding: 14 },
+  checkBtn: { padding: 4, marginLeft: 10 },
+  checkbox: { width: 26, height: 26, borderRadius: 13, borderWidth: 2.5, borderColor: COLORS.border, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background },
+  checkboxChecked: { backgroundColor: COLORS.green, borderColor: COLORS.green },
+  checkMark: { color: '#fff', fontSize: 14, fontWeight: 'bold' },
+  listInfo: { flex: 1, marginRight: 4 },
+  listName: { fontSize: 16, fontWeight: '700', color: COLORS.text, textAlign: 'right' },
+  listNameCompleted: { textDecorationLine: 'line-through', color: COLORS.textLight },
+  listMeta: { flexDirection: 'row', justifyContent: 'flex-end', gap: 12, marginTop: 4 },
+  listDate: { fontSize: 12, color: COLORS.textLight },
+  listNotify: { fontSize: 12, color: COLORS.orange },
+  listActions: { alignItems: 'center' },
+  badge: { backgroundColor: COLORS.primary, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4, marginBottom: 6 },
+  badgeText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  actionBtns: { flexDirection: 'row', gap: 4 },
+  actionBtn: { padding: 4 },
+  actionBtnText: { fontSize: 16 },
+  expandHint: { alignItems: 'center', paddingBottom: 8 },
+  expandHintText: { fontSize: 11, color: COLORS.textLight },
+  statusBadge: { marginTop: 4, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, alignSelf: 'flex-start' },
+  statusPurchased: { backgroundColor: '#E8F5E9' },
+  statusPending: { backgroundColor: '#FFF3E0' },
+  statusText: { fontSize: 11, fontWeight: '600' },
+  statusTextPurchased: { color: '#2E7D32' },
+  statusTextPending: { color: '#E65100' },
+  addExpenseBtn: { backgroundColor: COLORS.green, marginHorizontal: 14, marginBottom: 12, borderRadius: 12, paddingVertical: 12, alignItems: 'center', elevation: 2 },
+  addExpenseBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  itemsContainer: { backgroundColor: COLORS.card, borderBottomLeftRadius: 16, borderBottomRightRadius: 16, paddingHorizontal: 14, paddingBottom: 14, borderTopWidth: 1, borderTopColor: COLORS.border },
+  noItemsText: { textAlign: 'center', color: COLORS.textLight, fontSize: 14, paddingVertical: 16 },
+  itemRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  itemCheckBtn: { padding: 4, marginLeft: 8 },
+  itemCheckbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: COLORS.border, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background },
+  itemCheckboxChecked: { backgroundColor: COLORS.green, borderColor: COLORS.green },
+  itemCheckMark: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
+  itemName: { flex: 1, fontSize: 15, color: COLORS.text, textAlign: 'right', marginRight: 4 },
+  itemNameChecked: { textDecorationLine: 'line-through', color: COLORS.textLight },
+  qtyBadge: { backgroundColor: COLORS.primaryLight || '#EDF2F7', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, marginHorizontal: 6 },
+  qtyText: { fontSize: 12, color: COLORS.primary, fontWeight: '600' },
+  itemDeleteBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#FEE2E2', justifyContent: 'center', alignItems: 'center' },
+  itemDeleteText: { color: COLORS.red, fontSize: 13, fontWeight: 'bold' },
+  catalogContainer: { marginTop: 10 },
+  catalogHeader: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.background, borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12, marginBottom: 4, borderWidth: 1, borderColor: COLORS.border },
+  catalogHeaderOpen: { backgroundColor: COLORS.primaryLight || '#E8F0FE', borderColor: COLORS.primary, borderBottomLeftRadius: 0, borderBottomRightRadius: 0, marginBottom: 0 },
+  catalogHeaderIcon: { fontSize: 20, marginLeft: 8 },
+  catalogHeaderText: { flex: 1, fontSize: 15, fontWeight: '600', color: COLORS.text, textAlign: 'right' },
+  catalogHeaderArrow: { fontSize: 11, color: COLORS.textLight },
+  catalogItems: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, padding: 10, backgroundColor: COLORS.card, borderWidth: 1, borderTopWidth: 0, borderColor: COLORS.primary, borderBottomLeftRadius: 10, borderBottomRightRadius: 10, marginBottom: 4 },
+  catalogItem: { backgroundColor: COLORS.background, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: COLORS.border },
+  catalogItemAdded: { backgroundColor: '#E8F5E9', borderColor: COLORS.green },
+  catalogItemText: { fontSize: 13, color: COLORS.text },
+  catalogItemTextAdded: { color: COLORS.green },
+  expandedActions: { flexDirection: 'row', gap: 10, marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: COLORS.border },
+  saveListBtn: { flex: 1, backgroundColor: COLORS.primary, borderRadius: 12, paddingVertical: 12, alignItems: 'center', elevation: 2 },
+  saveListBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  cancelListBtn: { flex: 1, backgroundColor: COLORS.card, borderRadius: 12, paddingVertical: 12, alignItems: 'center', borderWidth: 1.5, borderColor: COLORS.border },
+  cancelListBtnText: { color: COLORS.textLight, fontSize: 14 },
+  addNewItemBtn: { marginTop: 10, paddingVertical: 12, backgroundColor: COLORS.primary, borderRadius: 12, alignItems: 'center', elevation: 2 },
+  addNewItemBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  fab: { position: 'absolute', bottom: 20, left: 20, backgroundColor: COLORS.primary, width: 58, height: 58, borderRadius: 18, justifyContent: 'center', alignItems: 'center', elevation: 6, shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 6 },
+  fabText: { color: '#fff', fontSize: 30, fontWeight: 'bold' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalContent: { backgroundColor: COLORS.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 32, width: '100%', maxHeight: '90%' },
+  modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#D0D5DD', alignSelf: 'center', marginBottom: 16 },
+  modalHeader: { alignItems: 'center', marginBottom: 16 },
+  modalIcon: { fontSize: 40, marginBottom: 8 },
+  modalTitle: { fontSize: 20, fontWeight: 'bold', color: COLORS.text, textAlign: 'center', marginBottom: 8 },
+  modalInput: { backgroundColor: COLORS.background, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, fontSize: 16, color: COLORS.text, borderWidth: 1.5, borderColor: COLORS.border, textAlign: 'right', marginBottom: 12 },
+  modalLabel: { fontSize: 14, fontWeight: '600', color: COLORS.text, marginBottom: 6, textAlign: 'right' },
+  modalActions: { flexDirection: 'row', gap: 12, marginTop: 8 },
+  modalSaveBtn: { flex: 1, backgroundColor: COLORS.primary, borderRadius: 14, paddingVertical: 16, alignItems: 'center', elevation: 2 },
+  modalSaveBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  modalCancelBtn: { flex: 1, backgroundColor: COLORS.background, borderRadius: 14, paddingVertical: 16, alignItems: 'center', borderWidth: 1.5, borderColor: COLORS.border },
+  modalCancelBtnText: { color: COLORS.textLight, fontSize: 16 },
+  expenseInfoCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.background, borderRadius: 14, padding: 14, marginBottom: 16, gap: 12 },
+  expenseInfoIcon: { fontSize: 32 },
+  expenseInfoName: { fontSize: 16, fontWeight: '700', color: COLORS.text },
+  expenseInfoDate: { fontSize: 13, color: COLORS.textLight, marginTop: 2 },
+  expenseNote: { fontSize: 12, color: COLORS.textLight, textAlign: 'center', marginBottom: 8, fontStyle: 'italic' },
+  label: { fontSize: 14, fontWeight: '600', color: COLORS.text, textAlign: 'right' },
+  customCatOption: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, borderRadius: 12, marginBottom: 6, backgroundColor: COLORS.background, borderWidth: 1.5, borderColor: COLORS.border },
+  customCatOptionActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primaryLight || '#E3F2FD' },
+  customCatOptionIcon: { fontSize: 22, marginLeft: 10 },
+  customCatOptionText: { fontSize: 15, color: COLORS.text },
+  customCatOptionTextActive: { color: COLORS.primary, fontWeight: '700' },
+  newCategoryToggle: { marginTop: 10, paddingVertical: 10, alignItems: 'center', backgroundColor: COLORS.primaryLight || '#F0F4FF', borderRadius: 12, borderWidth: 1, borderColor: COLORS.primary, borderStyle: 'dashed' },
+  newCategoryToggleText: { color: COLORS.primary, fontSize: 14, fontWeight: '600' },
+  newCatIconGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center', marginBottom: 16, paddingVertical: 8 },
+  newCatIconOption: { width: 48, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.background, borderWidth: 2, borderColor: COLORS.border },
+  newCatIconOptionActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primaryLight || '#E3F2FD', elevation: 2 },
 });
